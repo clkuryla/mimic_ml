@@ -20,7 +20,87 @@ library(tidyverse)
 # This data has all of the patients included in the study, after they filtered out certain patients due to the exclusion criteria in the paper
 # n = 4559
 
-data_raw <- read_csv("data_big/12967_2020_2620_MOESM1_ESM.csv")
+data <- read_csv("data/12967_2020_2620_MOESM1_ESM.csv")
 
+```
+
+# Distributions
+
+```{r}
+
+# Create histograms for each variable
+data %>%
+  #select(-c(icustay_id...1, hadm_id...2, icustay_id...103, hadm_id...102,
+        #    intime, outtime, dbsource, suspected_infection_time_poe)) %>% #filter irrelevant variables
+  select(
+    age, icu_los, hosp_los, sofa, lods
+  ) %>% 
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = value)) +
+  geom_histogram( fill = "cornflowerblue", alpha = 0.7, color = "black") +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Histograms of Variables", x = "Value", y = "Count")
+
+data %>%
+  select(aniongap_min:hematocrit_max) %>% 
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = value)) +
+  geom_histogram(fill = "cornflowerblue", alpha = 0.7, color = "black") +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Histograms of Variables", x = "Value", y = "Count")
+
+data %>%
+  select(hemoglobin_min, hemoglobin_max,
+      #   lactate_mean, lactate_min, lactate_max,
+         platelet_min, platelet_max,
+         potassium_min, potassium_max,
+         inr_min, inr_max,
+      sodium_min, sodium_max
+      ) %>% 
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = value)) +
+  geom_histogram(fill = "cornflowerblue", alpha = 0.7, color = "black") +
+  facet_wrap(~ variable, scales = "free", ncol = 4) +
+  theme_minimal() +
+  labs(title = "Histograms of Variables", x = "Value", y = "Count")
+
+data %>%
+  select(lactate_min:lactate_mean,
+         bun_min:wbc_mean) %>% 
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = value)) +
+  geom_histogram(fill = "cornflowerblue", alpha = 0.7, color = "black") +
+  facet_wrap(~ variable, scales = "free", ncol = 3) +
+  theme_minimal() +
+  labs(title = "Histograms of Variables", x = "Value", y = "Count")
+
+data %>%
+  select(heartrate_min:diasbp_mean) %>% 
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = value)) +
+  geom_histogram(fill = "cornflowerblue", alpha = 0.7, color = "black") +
+  facet_wrap(~ variable, scales = "free", ncol = 3) +
+  theme_minimal() +
+  labs(title = "Histograms of Variables", x = "Value", y = "Count")
+
+data %>%
+  select(meanbp_min:tempc_mean) %>% 
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = value)) +
+  geom_histogram(fill = "cornflowerblue", alpha = 0.7, color = "black") +
+  facet_wrap(~ variable, scales = "free", ncol = 3) +
+  theme_minimal() +
+  labs(title = "Histograms of Variables", x = "Value", y = "Count")
+
+data %>%
+  select(spo2_min:glucose_mean) %>% 
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = value)) +
+  geom_histogram(fill = "cornflowerblue", alpha = 0.7, color = "black") +
+  facet_wrap(~ variable, scales = "free", ncol = 3) +
+  theme_minimal() +
+  labs(title = "Histograms of Variables", x = "Value", y = "Count")
 ```
 
