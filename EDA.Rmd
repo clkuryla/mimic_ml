@@ -1,0 +1,26 @@
+---
+title: "EDA"
+author: "Christine Lucille Kuryla"
+date: "2024-11-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+
+```
+
+## Data from online article
+
+```{r}
+# Downloaded from: https://translational-medicine.biomedcentral.com/articles/10.1186/s12967-020-02620-5#Sec14
+
+# This data has all of the patients included in the study, after they filtered out certain patients due to the exclusion criteria in the paper
+# n = 4559
+
+data_raw <- read_csv("data_big/12967_2020_2620_MOESM1_ESM.csv")
+
+```
+
