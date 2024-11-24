@@ -273,8 +273,6 @@ pca_result <- prcomp(data_numeric %>% select(-c(icustay_id...1),
 
 loadings <- pca_result$rotation
 
-loadings <- as.data.frame(loadings)
-
 loadings <- loadings[,1:10]
 
 # Convert the loadings matrix into a long format for ggplot
@@ -290,16 +288,16 @@ ggplot(loadings_melted, aes(x = Var2, y = Var1, fill = value)) +
 
 biplot(pca_result)
 
-library("FactoMineR")
-
-fviz_pca_var(pca_result, col.var = "cos2",
-            gradient.cols = c("black", "orange", "green"),
-            repel = TRUE)
+# library("FactoMineR")
+# 
+# fviz_pca_var(pca_result, col.var = "cos2",
+#             gradient.cols = c("black", "orange", "green"),
+#             repel = TRUE)
 
 # Prepare data for plotting
 scores <- as.data.frame(pca_result$x[, 1:6])  # Take PC1 and PC2
 scores$thirty_day <- data_numeric %>% mutate(thirtyday_expire_flag = as.factor(thirtyday_expire_flag)) %>% pull(thirtyday_expire_flag) 
-colnames(scores) <- c("PC1", "PC2", "PC3", "PC4", "PC5", "thirty_day")
+#colnames(scores) <- c("PC1", "PC2", "PC3", "PC4", "PC5", "thirty_day")
 
 # Plot
 ggplot(scores, aes(x = PC1, y = PC2, color = thirty_day)) +

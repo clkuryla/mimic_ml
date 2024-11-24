@@ -503,3 +503,154 @@ knitr::kable(
 | specimen_poe | ABSCESS (3, 100%); BILE (2, 100%); BLOOD CULTURE (1931, 100%); BLOOD CULTURE ( MYCO/F LYTIC BOTTLE) (3, 100%); BRONCHIAL WASHINGS (4, 100%); BRONCHOALVEOLAR LAVAGE (3, 100%); Blood (CMV AB) (9, 100%); Blood (EBV) (3, 100%); Blood (Malaria) (1, 100%); Blood (Toxo) (3, 100%); CATHETER TIP-IV (4, 100%); CSF;SPINAL FLUID (22, 100%); DIALYSIS FLUID (1, 100%); FLUID RECEIVED IN BLOOD CULTURE BOTTLES (4, 100%); FLUID,OTHER (9, 100%); FOREIGN BODY (1, 100%); IMMUNOLOGY (14, 100%); Immunology (CMV) (3, 100%); Influenza A/B by DFA (14, 100%); JOINT FLUID (1, 100%); MRSA SCREEN (1480, 100%); Mini-BAL (1, 100%); NEOPLASTIC BLOOD (3, 100%); PERITONEAL FLUID (10, 100%); PLEURAL FLUID (3, 100%); RAPID RESPIRATORY VIRAL ANTIGEN TEST (1, 100%); Rapid Respiratory Viral Screen & Culture (4, 100%); SEROLOGY/BLOOD (29, 100%); SPUTUM (50, 100%); STOOL (18, 100%); SWAB (93, 100%); Staph aureus Screen (41, 100%); TISSUE (20, 100%); URINE (770, 100%); URINE,KIDNEY (1, 100%) |
 
 Table 1: Summary Statistics
+
+# PCA
+
+``` r
+data_numeric <-  data %>%
+   # select(-c(icustay_id...1, hadm_id...2, icustay_id...103, hadm_id...102,intime, outtime, dbsource, blood_culture_time, antibiotic_time_poe, suspected_infection_time_poe)) %>% 
+ #   select(where(is.numeric))  %>% 
+   select(suspected_infection_time_poe_days,
+          age, 
+          icu_los,
+          hosp_los,
+          sofa,
+          lods,
+          sirs,
+          qsofa,
+          aniongap_min:glucose_mean,
+          urineoutput,
+          icustay_id...1,
+          thirtyday_expire_flag) %>% 
+  na.omit()
+
+pca_result <- prcomp(data_numeric %>% select(-c(icustay_id...1),
+                                             thirtyday_expire_flag), scale = TRUE)
+
+loadings <- pca_result$rotation
+
+loadings <- loadings[,1:10]
+
+# Convert the loadings matrix into a long format for ggplot
+library(reshape2)
+```
+
+    ## 
+    ## Attaching package: 'reshape2'
+
+    ## The following object is masked from 'package:tidyr':
+    ## 
+    ##     smiths
+
+``` r
+loadings_melted <- melt(loadings)
+
+# Plot the heatmap using ggplot
+ggplot(loadings_melted, aes(x = Var2, y = Var1, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", mid = "lightyellow", high = "red", midpoint = 0) +
+  labs(title = "Heatmap of PCA Loadings", x = "Principal Components", y = "Variables") +
+  theme_minimal()
+```
+
+![](EDA_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+
+``` r
+biplot(pca_result)
+```
+
+![](EDA_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->
+
+``` r
+# library("FactoMineR")
+# 
+# fviz_pca_var(pca_result, col.var = "cos2",
+#             gradient.cols = c("black", "orange", "green"),
+#             repel = TRUE)
+
+# Prepare data for plotting
+scores <- as.data.frame(pca_result$x[, 1:6])  # Take PC1 and PC2
+scores$thirty_day <- data_numeric %>% mutate(thirtyday_expire_flag = as.factor(thirtyday_expire_flag)) %>% pull(thirtyday_expire_flag) 
+#colnames(scores) <- c("PC1", "PC2", "PC3", "PC4", "PC5", "thirty_day")
+
+# Plot
+ggplot(scores, aes(x = PC1, y = PC2, color = thirty_day)) +
+  geom_point(size = 2, alpha = 0.6) +
+  labs(title = "PC1 vs PC2", x = "Principal Component 1", y = "Principal Component 2") +
+  theme_minimal() 
+```
+
+![](EDA_files/figure-gfm/unnamed-chunk-4-3.png)<!-- -->
+
+``` r
+as.data.frame(loadings) %>%
+  select(PC1) %>% 
+  arrange(PC1)
+```
+
+    ##                                            PC1
+    ## lods                              -0.244525156
+    ## bun_mean                          -0.234082384
+    ## sofa                              -0.232509237
+    ## bun_max                           -0.231929597
+    ## bun_min                           -0.229957848
+    ## aniongap_max                      -0.225612252
+    ## aniongap_min                      -0.210283764
+    ## creatinine_max                    -0.196453038
+    ## creatinine_min                    -0.194258016
+    ## lactate_mean                      -0.191438884
+    ## lactate_max                       -0.178574154
+    ## lactate_min                       -0.172802224
+    ## thirtyday_expire_flag             -0.155248501
+    ## potassium_max                     -0.122045127
+    ## inr_max                           -0.107805309
+    ## inr_min                           -0.107537056
+    ## resprate_mean                     -0.104052086
+    ## qsofa                             -0.103418720
+    ## potassium_min                     -0.096894285
+    ## resprate_max                      -0.087662605
+    ## sirs                              -0.083369111
+    ## age                               -0.077663049
+    ## wbc_max                           -0.074899202
+    ## wbc_mean                          -0.071137555
+    ## glucose_max                       -0.064550747
+    ## wbc_min                           -0.059124616
+    ## heartrate_max                     -0.049912161
+    ## heartrate_mean                    -0.048911697
+    ## resprate_min                      -0.041209652
+    ## icu_los                           -0.022755100
+    ## heartrate_min                     -0.015697845
+    ## chloride_max                      -0.014856330
+    ## suspected_infection_time_poe_days -0.013257860
+    ## glucose_min1                       0.001379701
+    ## hosp_los                           0.002878038
+    ## glucose_mean                       0.004182707
+    ## glucose_max1                       0.005076312
+    ## glucose_min                        0.005656880
+    ## sodium_max                         0.008963107
+    ## platelet_max                       0.010599631
+    ## meanbp_max                         0.018805641
+    ## spo2_max                           0.020593365
+    ## chloride_min                       0.022482637
+    ## platelet_min                       0.034063385
+    ## sodium_min                         0.035718971
+    ## diasbp_max                         0.053352307
+    ## hematocrit_max                     0.056051461
+    ## hemoglobin_max                     0.069829014
+    ## tempc_max                          0.069891825
+    ## sysbp_max                          0.073659258
+    ## hematocrit_min                     0.074688176
+    ## hemoglobin_min                     0.092554676
+    ## spo2_mean                          0.095770001
+    ## tempc_min                          0.101968139
+    ## tempc_mean                         0.104658606
+    ## urineoutput                        0.111094282
+    ## spo2_min                           0.122986930
+    ## diasbp_mean                        0.135544167
+    ## sysbp_mean                         0.150839918
+    ## meanbp_mean                        0.157632737
+    ## diasbp_min                         0.160743186
+    ## bicarbonate_max                    0.161733803
+    ## meanbp_min                         0.161773169
+    ## sysbp_min                          0.177075346
+    ## bicarbonate_min                    0.205408868
