@@ -247,3 +247,69 @@ knitr::kable(
 
 ```
 
+# PCA
+
+```{r}
+
+data_numeric <-  data %>%
+   # select(-c(icustay_id...1, hadm_id...2, icustay_id...103, hadm_id...102,intime, outtime, dbsource, blood_culture_time, antibiotic_time_poe, suspected_infection_time_poe)) %>% 
+ #   select(where(is.numeric))  %>% 
+   select(suspected_infection_time_poe_days,
+          age, 
+          icu_los,
+          hosp_los,
+          sofa,
+          lods,
+          sirs,
+          qsofa,
+          aniongap_min:glucose_mean,
+          urineoutput,
+          icustay_id...1,
+          thirtyday_expire_flag) %>% 
+  na.omit()
+
+pca_result <- prcomp(data_numeric %>% select(-c(icustay_id...1),
+                                             thirtyday_expire_flag), scale = TRUE)
+
+loadings <- pca_result$rotation
+
+loadings <- as.data.frame(loadings)
+
+loadings <- loadings[,1:10]
+
+# Convert the loadings matrix into a long format for ggplot
+library(reshape2)
+loadings_melted <- melt(loadings)
+
+# Plot the heatmap using ggplot
+ggplot(loadings_melted, aes(x = Var2, y = Var1, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", mid = "lightyellow", high = "red", midpoint = 0) +
+  labs(title = "Heatmap of PCA Loadings", x = "Principal Components", y = "Variables") +
+  theme_minimal()
+
+biplot(pca_result)
+
+library("FactoMineR")
+
+fviz_pca_var(pca_result, col.var = "cos2",
+            gradient.cols = c("black", "orange", "green"),
+            repel = TRUE)
+
+# Prepare data for plotting
+scores <- as.data.frame(pca_result$x[, 1:6])  # Take PC1 and PC2
+scores$thirty_day <- data_numeric %>% mutate(thirtyday_expire_flag = as.factor(thirtyday_expire_flag)) %>% pull(thirtyday_expire_flag) 
+colnames(scores) <- c("PC1", "PC2", "PC3", "PC4", "PC5", "thirty_day")
+
+# Plot
+ggplot(scores, aes(x = PC1, y = PC2, color = thirty_day)) +
+  geom_point(size = 2, alpha = 0.6) +
+  labs(title = "PC1 vs PC2", x = "Principal Component 1", y = "Principal Component 2") +
+  theme_minimal() 
+
+as.data.frame(loadings) %>%
+  select(PC1) %>% 
+  arrange(PC1)
+
+```
+
