@@ -105,4 +105,139 @@ data %>%
   labs(title = "Histograms of Variables", x = "Value", y = "Count")
 ```
 
-# S
+# Summary Statistics
+
+```{r}
+
+
+# Define summary statistics function
+summarize_data <- function(data) {
+  # Separate numeric and categorical columns
+  numeric_vars <- data %>% select(where(is.numeric)) %>% names()
+  categorical_vars <- data %>% select(where(~ is.character(.x) || is.factor(.x))) %>% names()
+  
+  # Summary for numeric variables
+  numeric_summary <- data %>%
+    select(all_of(numeric_vars)) %>%
+    pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+    group_by(variable) %>%
+    reframe(
+      stats = if (all(value %in% c(0, 1), na.rm = TRUE)) {
+        counts <- table(value)
+        percentages <- prop.table(counts) * 100
+        paste0(
+          "Count: ", paste(names(counts), "=", counts, collapse = ", "), "; ",
+          "Percentage: ", paste(names(percentages), "=", round(percentages, 2), "%", collapse = ", ")
+        )
+      } else {
+        paste0(
+          "Mean: ", round(mean(value, na.rm = TRUE), 2), "; ",
+          "Median: ", round(median(value, na.rm = TRUE), 2), "; ",
+          "SD: ", round(sd(value, na.rm = TRUE), 2), "; ",
+          "Min: ", round(min(value, na.rm = TRUE), 2), "; ",
+          "Max: ", round(max(value, na.rm = TRUE), 2)
+        )
+      }
+    )
+  
+  # Summary for categorical variables
+  categorical_summary <- data %>%
+    select(all_of(categorical_vars)) %>%
+    pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+    group_by(variable, value) %>%
+    summarise(
+      count = n(),
+      percentage = round(n() / sum(n()) * 100, 2),
+      .groups = "drop"
+    ) %>%
+    group_by(variable) %>%
+    reframe(
+      stats = paste0(
+        value, ": Count ", count, "; Percentage ", percentage, "%", collapse = "; "
+      )
+    )
+  
+  # Combine summaries
+  bind_rows(
+    numeric_summary,
+    categorical_summary
+  )
+}
+
+
+# Define summary statistics function
+summarize_data_table1 <- function(data) {
+  numeric_vars <- data %>% select(where(is.numeric)) %>% names()
+  categorical_vars <- data %>% select(where(~ is.character(.x) || is.factor(.x))) %>% names()
+  
+  # Numeric variables summary
+  numeric_summary <- data %>%
+    select(all_of(numeric_vars)) %>%
+    pivot_longer(cols = everything(), names_to = "Variable", values_to = "Value") %>%
+    group_by(Variable) %>%
+    reframe(
+      Summary = if (all(Value %in% c(0, 1), na.rm = TRUE)) {
+        counts <- table(Value)
+        percentages <- prop.table(counts) * 100
+        paste0(
+          paste(names(counts), " (", round(percentages, 2), "%)", collapse = ", ")
+        )
+      } else {
+        paste0(
+          "Mean: ", round(mean(Value, na.rm = TRUE), 2), ", ",
+          "Median: ", round(median(Value, na.rm = TRUE), 2), ", ",
+          "SD: ", round(sd(Value, na.rm = TRUE), 2), ", ",
+          "Min: ", round(min(Value, na.rm = TRUE), 2), ", ",
+          "Max: ", round(max(Value, na.rm = TRUE), 2)
+        )
+      }
+    )
+  
+  # Categorical variables summary
+  categorical_summary <- data %>%
+    select(all_of(categorical_vars)) %>%
+    pivot_longer(cols = everything(), names_to = "Variable", values_to = "Value") %>%
+    group_by(Variable, Value) %>%
+    summarise(
+      Count = n(),
+      Percentage = round(n() / sum(n()) * 100, 2),
+      .groups = "drop"
+    ) %>%
+    group_by(Variable) %>%
+    reframe(
+      Summary = paste0(
+        Value, " (", Count, ", ", Percentage, "%)", collapse = "; "
+      )
+    )
+  
+  # Combine summaries
+  bind_rows(
+    numeric_summary,
+    categorical_summary
+  )
+}
+
+# Run the function on the example dataset
+summary_stats <- summarize_data(data %>% 
+                                  select(-c(icustay_id...1, hadm_id...2, icustay_id...103, hadm_id...102,intime, outtime, dbsource, blood_culture_time, antibiotic_time_poe, suspected_infection_time_poe)))
+
+# View the result
+knitr::kable(summary_stats)
+
+# Generate the Table 1
+table1 <- summarize_data_table1(data %>% 
+                                  select(-c(icustay_id...1, hadm_id...2, icustay_id...103, hadm_id...102,intime, outtime, dbsource, blood_culture_time,antibiotic_time_poe, suspected_infection_time_poe)))
+
+# Display Table 1
+knitr::kable(
+  table1,
+  col.names = c("Variable", "Summary"),
+  caption = "Table 1: Summary Statistics"
+)
+
+
+
+
+
+```
+
