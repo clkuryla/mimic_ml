@@ -3,6 +3,15 @@ EDA
 Christine Lucille Kuryla
 2024-11-24
 
+# Article
+
+Hou, N., Li, M., He, L. et al. Predicting 30-days mortality for
+MIMIC-III patients with sepsis-3: a machine learning approach using
+XGboost. J Transl Med 18, 462 (2020).
+<https://doi.org/10.1186/s12967-020-02620-5>
+
+<https://translational-medicine.biomedcentral.com/articles/10.1186/s12967-020-02620-5>
+
 ## Data from online article
 
 ``` r
