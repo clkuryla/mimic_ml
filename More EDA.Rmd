@@ -1,0 +1,227 @@
+---
+title: "EDA Sandbox CLK"
+author: "Christine Lucille Kuryla"
+date: "2024-11-25"
+output: 
+  html_document:
+    toc: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+
+```
+
+This document is where Christine will play around with random stuff for funsies. 
+
+# Article and Data
+
+# Article
+
+Article:
+Hou, N., Li, M., He, L. et al. Predicting 30-days mortality for MIMIC-III patients with sepsis-3: a machine learning approach using XGboost. J Transl Med 18, 462 (2020). https://doi.org/10.1186/s12967-020-02620-5
+
+Article's data subset of MIMIC-III:
+https://translational-medicine.biomedcentral.com/articles/10.1186/s12967-020-02620-5 
+
+## Load data
+
+```{r}
+# Downloaded from: https://translational-medicine.biomedcentral.com/articles/10.1186/s12967-020-02620-5#Sec14
+
+# This data has all of the patients included in the study, after they filtered out certain patients due to the exclusion criteria in the paper
+# n = 4559
+
+data <- read_csv("data/12967_2020_2620_MOESM1_ESM.csv")
+
+```
+
+# Corr matrix heatmap
+
+# PCA
+
+## Numerica data only 
+
+```{r}
+data_numeric <-  data %>%
+   # select(-c(icustay_id...1, hadm_id...2, icustay_id...103, hadm_id...102,intime, outtime, dbsource, blood_culture_time, antibiotic_time_poe, suspected_infection_time_poe)) %>% 
+ #   select(where(is.numeric))  %>% 
+   select(suspected_infection_time_poe_days,
+          age, 
+          icu_los,
+          hosp_los,
+          sofa,
+          lods,
+          sirs,
+          qsofa,
+          aniongap_min:glucose_mean,
+          urineoutput,
+          icustay_id...1,
+          thirtyday_expire_flag) %>% 
+  na.omit()
+```
+
+## PCA with prcomp
+
+```{r}
+pca_result <- prcomp(data_numeric %>% select(-c(icustay_id...1),
+                                             thirtyday_expire_flag), scale = TRUE)
+
+loadings <- pca_result$rotation
+
+loadings <- loadings[,1:10]
+```
+
+### Loadings heatmap
+
+```{r}
+# Convert the loadings matrix into a long format for ggplot
+library(reshape2)
+loadings_melted <- melt(loadings)
+
+# Plot the heatmap using ggplot
+ggplot(loadings_melted, aes(x = Var2, y = Var1, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", mid = "lightyellow", high = "red", midpoint = 0) +
+  labs(title = "Heatmap of PCA Loadings", x = "Principal Components", y = "Variables") +
+  theme_minimal()
+```
+
+### Biplot
+
+```{r}
+biplot(pca_result)
+
+# library("FactoMineR")
+# 
+# fviz_pca_var(pca_result, col.var = "cos2",
+#             gradient.cols = c("black", "orange", "green"),
+#             repel = TRUE)
+```
+
+### PCA Scatterplot
+
+```{r}
+# Prepare data for plotting
+scores <- as.data.frame(pca_result$x[, 1:6])  # Take PC1 and PC2
+scores$thirty_day <- data_numeric %>% mutate(thirtyday_expire_flag = as.factor(thirtyday_expire_flag)) %>% pull(thirtyday_expire_flag) 
+#colnames(scores) <- c("PC1", "PC2", "PC3", "PC4", "PC5", "thirty_day")
+
+# Plot
+ggplot(scores, aes(x = PC1, y = PC2, color = thirty_day)) +
+  geom_point(size = 2, alpha = 0.6) +
+  labs(title = "PC1 vs PC2", x = "Principal Component 1", y = "Principal Component 2") +
+  theme_minimal() 
+
+as.data.frame(loadings) %>%
+  select(PC1) %>% 
+  arrange(PC1)
+
+
+# Plot
+ggplot(scores, aes(x = PC3, y = PC4, color = thirty_day)) +
+  geom_point(size = 2, alpha = 0.6) +
+  labs(title = "PC1 vs PC2", x = "Principal Component 1", y = "Principal Component 2") +
+  theme_minimal() 
+
+# Plot
+ggplot(scores, aes(x = PC2, y = PC5, color = thirty_day)) +
+  geom_point(size = 2, alpha = 0.6) +
+  labs(title = "PC1 vs PC2", x = "Principal Component 1", y = "Principal Component 2") +
+  theme_minimal() 
+
+
+```
+
+# Correlations
+
+## Correlations of numeric variables
+
+```{r}
+
+correlation_matrix <- cor(data_numeric)
+knitr::kable(correlation_matrix)
+
+# Create a heatmap
+
+#upper_tri <- matrixcalc::upper.triangle(correlation_auto)
+#melted_cormat <- reshape2::melt(upper_tri, na.rm = TRUE)
+
+melted_cormat <- reshape2::melt(correlation_matrix, na.rm = TRUE)
+
+ggplot(data = melted_cormat, aes(Var2, Var1, fill = value))+
+ geom_tile(color = "white")+
+ scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab", 
+   name="Pearson\nCorrelation") +
+  theme_minimal()+ 
+ theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+     hjust = 1))+
+ coord_fixed() #+
+ # geom_text(aes(Var2, Var1, label = if_else(value != 0, as.character(round(value, digits = 2)), " ")))
+
+
+```
+
+### Interactive 
+
+```{r}
+
+# Load necessary packages
+library(ggplot2)
+library(reshape2)
+library(plotly)
+library(Hmisc)
+
+
+# Compute the correlation matrix and p-values
+cor_res <- rcorr(as.matrix(data_numeric))
+
+cor_mat <- cor_res$r        # Correlation coefficients
+p_mat <- cor_res$P          # P-values
+
+# Melt the correlation matrix and p-value matrix into long format
+cor_mat_melt <- melt(cor_mat)
+p_mat_melt <- melt(p_mat)
+
+# Rename columns for clarity
+colnames(cor_mat_melt) <- c("Var1", "Var2", "Correlation")
+colnames(p_mat_melt) <- c("Var1", "Var2", "p_value")
+
+# Combine the correlation and p-value data
+cor_mat_melt$p_value <- p_mat_melt$p_value
+
+# Create a column for significance asterisks
+cor_mat_melt$signif <- ifelse(cor_mat_melt$p_value < 0.05, "*", "")
+
+# Create a ggplot heatmap with custom text for tooltips
+p <- ggplot(cor_mat_melt, aes(
+    x = Var1,
+    y = Var2,
+    fill = Correlation,
+    text = paste0(
+        "Variables: ", Var1, " & ", Var2, "<br>",
+        "Correlation: ", round(Correlation, 2), "<br>",
+        "p-value: ", signif(p_value, 2)
+    )
+)) +
+    geom_tile() +
+    geom_text(aes(label = signif), color = "black", size = 1) +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+    theme_minimal() +
+    theme(
+        axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+    )
+
+# Convert ggplot object to an interactive Plotly object
+p_interactive <- ggplotly(p, tooltip = "text")
+
+# Display the interactive heatmap
+p_interactive
+
+
+```
+
+
