@@ -1,0 +1,34 @@
+---
+title: "Outline of Docs"
+author: "Christine Lucille Kuryla"
+date: "2024-11-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# To Do
+
+  * Decide how to deal with outliers and truly clean data
+  * Start organizing paper reproduction
+  * Brainstorm additional analysis on the main data
+  * Maybe find other analyses to do on the PPG data 
+
+# Docs Outline
+
+## EDA.md
+  * load data
+  * histograms and summary stats
+  * NEED TO DO: decide how to handle outliers that are apparent in the histograms
+  
+## More EDA
+  * more EDA-ish analyses
+  * PCA
+    * loading heatmap
+    * scatterplot
+    * biplot
+  * correlation matrix and heatmap
+  
+  
