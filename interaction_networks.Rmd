@@ -1,0 +1,144 @@
+---
+title: "Graphs/Networks"
+author: "Christine Lucille Kuryla"
+date: "2024-11-27"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+
+data <- data_numeric %>% 
+  select(-icustay_id...1)
+
+```
+
+
+```{r}
+# Step 1: Load Necessary Libraries
+library(igraph)      # For graph operations
+library(dplyr)       # For data manipulation
+library(tidyr)       # For data tidying
+library(broom)       # For tidying model outputs
+
+# Step 2: Load and Prepare the Data
+# We'll use the built-in 'mtcars' dataset for this example
+#data <- mtcars
+
+# Select a subset of metrics (variables) for simplicity
+# Remove any categorical variables for this example
+#metrics <- data %>% select(mpg, disp, hp, drat, wt, qsec)
+
+metrics <- data 
+
+# Optional: Standardize the metrics to have mean = 0 and sd = 1
+metrics_scaled <- as.data.frame(scale(metrics %>% select(-thirtyday_expire_flag)))
+
+metrics_scaled <- cbind(metrics_scaled, data %>% select(thirtyday_expire_flag))
+
+# Get the names of the metrics
+metric_names <- colnames(metrics_scaled)
+
+# Step 3: Fit Regression Models with Interaction Terms
+# We'll create all possible pairs of interactions between metrics
+interaction_pairs <- combn(metric_names, 2, simplify = FALSE)
+
+# Initialize a data frame to store interaction effects
+interaction_effects <- data.frame(
+  metric1 = character(),
+  metric2 = character(),
+  estimate = numeric(),
+  std_error = numeric(),
+  statistic = numeric(),
+  p_value = numeric(),
+  stringsAsFactors = FALSE
+)
+
+# Loop over each pair and fit a regression model with interaction term
+for (pair in interaction_pairs) {
+  m1 <- pair[1]
+  m2 <- pair[2]
+  
+  # Define the formula with interaction
+  formula <- as.formula(paste("thirtyday_expire_flag ~", 
+                         #     ". + ", # keep if we want to control for all else
+                         #     m1, "+", m2, "+", # keep if we want interaction effects beyond the effects of each alone, comment out if not
+                              m1, "*", m2))
+  
+  # Fit the linear model
+  model <- glm(formula = formula, family = "binomial", data = metrics_scaled)
+  
+  # Tidy the model output
+  tidy_model <- tidy(model)
+  
+  # Extract the interaction term (m1:m2)
+  interaction_term <- paste0(m1, ":", m2)
+  interaction_row <- tidy_model %>% filter(term == interaction_term)
+  
+  # Check if the interaction term exists (it should)
+  if (nrow(interaction_row) > 0) {
+    # Append to the interaction effects data frame
+    interaction_effects <- rbind(interaction_effects, data.frame(
+      metric1 = m1,
+      metric2 = m2,
+      estimate = interaction_row$estimate,
+      std_error = interaction_row$std.error,
+      statistic = interaction_row$statistic,
+      p_value = interaction_row$p.value,
+      stringsAsFactors = FALSE
+    ))
+  }
+}
+
+# Step 4: Extract Significant Interactions
+# Set a significance level (e.g., alpha = 0.05)
+alpha <- 0.05/(length(metrics)^2) # bonferroni
+significant_interactions <- interaction_effects %>% filter(p_value < alpha)
+```
+
+```{r, eval = FALSE}
+
+# # Write out edges of "thirtyday_expire_flag ~ m1*m2"
+write_csv(interaction_effects_alone, "data/processed/interaction_effects_alone.csv")
+
+# Write out edges of "thirtyday_expire_flag ~ . + m1*m2"
+write_csv(interaction_effects_control_for_all, "data/processed/interaction_effects_control_for_all.csv")
+
+```
+
+
+```{r}
+# Step 5: Build and Visualize the Interaction Graph
+
+# Create an edge list from significant interactions
+edges <- significant_interactions %>% select(metric1, metric2, estimate)
+
+# Build the graph
+g <- graph_from_data_frame(edges, directed = FALSE)
+
+# Set edge weights (absolute value of estimates)
+E(g)$weight <- abs(edges$estimate)
+
+# Set edge color based on the sign of the estimate
+E(g)$color <- ifelse(edges$estimate > 0, "blue", "red")
+
+# Set node labels and sizes
+V(g)$label <- V(g)$name
+V(g)$size <- 3
+
+# Plot the graph
+plot(g,
+    # edge.width = E(g)$weight * 2 ,   # Scale edge width for visibility
+   #  vertex.label.cex = 1.5,
+     edge.curved = 0.2,
+     main = "Significant Metric Interactions")
+
+??`igraph-package`
+
+table(significant_interactions$metric1)
+
+```

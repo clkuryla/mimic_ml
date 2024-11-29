@@ -38,6 +38,42 @@ data <- read_csv("data/12967_2020_2620_MOESM1_ESM.csv")
 
 ```
 
+# Add range of variables that have a min and a max to account for variability?
+
+```{r}
+
+data_original <- data
+
+data_more_features <- data %>% 
+  mutate(aniongap_range = aniongap_max - aniongap_min,
+         bicarbonate_range = bicarbonate_max - bicarbonate_min,
+         creatinine_range = creatinine_max - creatinine_min,
+         chloride_range = chloride_max - chloride_min,
+         glucose_range = glucose_max - glucose_min,
+         hematocrit_range = hematocrit_max - hematocrit_min,
+         hemoglobin_range = hemoglobin_max - hemoglobin_min,
+         lactate_range = lactate_max - lactate_min,
+         platelet_range = platelet_max - platelet_min,
+         potassium_range = potassium_max - potassium_min,
+         inr_range = inr_max - inr_min,
+         sodium_range = sodium_max - sodium_min,
+         bun_range = bun_max - bun_min,
+         wbc_range = wbc_max - wbc_min,
+         heartrate_range = heartrate_max - heartrate_min,
+         sysbp_range = sysbp_max - sysbp_min,
+         diasbp_range = diasbp_max - diasbp_min,
+         meanbp_range = meanbp_max - meanbp_min,
+         resprate_range = resprate_max - resprate_min,
+         tempc_range = tempc_max - tempc_min,
+         spo2_range = spo2_max - spo2_min
+         )
+
+data <- data_more_features
+
+```
+
+
+
 # Corr matrix heatmap
 
 # PCA
@@ -58,6 +94,7 @@ data_numeric <-  data %>%
           qsofa,
           aniongap_min:glucose_mean,
           urineoutput,
+          aniongap_range:spo2_range, #optional 
           icustay_id...1,
           thirtyday_expire_flag) %>% 
   na.omit()
@@ -121,13 +158,13 @@ as.data.frame(loadings) %>%
 
 
 # Plot
-ggplot(scores, aes(x = PC3, y = PC4, color = thirty_day)) +
+ggplot(scores, aes(x = PC1, y = PC4, color = thirty_day)) +
   geom_point(size = 2, alpha = 0.6) +
   labs(title = "PC1 vs PC2", x = "Principal Component 1", y = "Principal Component 2") +
   theme_minimal() 
 
 # Plot
-ggplot(scores, aes(x = PC2, y = PC5, color = thirty_day)) +
+ggplot(scores, aes(x = PC2, y = PC3, color = thirty_day)) +
   geom_point(size = 2, alpha = 0.6) +
   labs(title = "PC1 vs PC2", x = "Principal Component 1", y = "Principal Component 2") +
   theme_minimal() 
