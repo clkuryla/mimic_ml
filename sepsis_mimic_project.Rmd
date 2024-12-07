@@ -1,30 +1,202 @@
 ---
-title: "ML MIMIC Project"
+title: "ML MIMIC Sepsis Project"
 author: "Christine Lucille Kuryla"
 date: "2024-12-07"
-output: html_document
+output: 
+  html_document:
+    toc: TRUE
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+
 ```
 
-## R Markdown
+# Article
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Hou, N., Li, M., He, L. et al. Predicting 30-days mortality for MIMIC-III patients with sepsis-3: a machine learning approach using XGboost. J Transl Med 18, 462 (2020). https://doi.org/10.1186/s12967-020-02620-5
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+https://translational-medicine.biomedcentral.com/articles/10.1186/s12967-020-02620-5 
 
-```{r cars}
-summary(cars)
+# Data from online article
+
+## Load Data
+```{r load_data}
+# Downloaded from: https://translational-medicine.biomedcentral.com/articles/10.1186/s12967-020-02620-5#Sec14
+
+# This data has all of the patients included in the study, after they filtered out certain patients due to the exclusion criteria in the paper
+# n = 4559
+
+data <- read_csv("data/12967_2020_2620_MOESM1_ESM.csv") 
+
+
+
 ```
 
-## Including Plots
+## Data Cleaning
 
-You can also embed plots, for example:
+```{r}
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+colnames(data)
+
+# Remove duplicates
+
+all(data$icustay_id...1 == data$icustay_id...103) # TRUE
+all(data$hadm_id...102 == data$hadm_id...2) # TRUE
+
+data <- data %>% 
+  mutate(icustay_id = icustay_id...1,
+         hadm_id = hadm_id...2
+         ) %>% 
+  select(-c("icustay_id...1", "icustay_id...103",
+            "hadm_id...2", "hadm_id...102"
+            ))
+
+# Convert into appropriate data types
+
+# Let's clean the data before we start doing the analyses
+# Convert categorical variables into factor variables, date variables into datetime, etc
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+# Article Analysis Reproduction 
+
+## Statistical Summaries of Variables
+
+```{r}
+
+# Statistical analysis steps
+# Normally distributed continuous variables were
+# summarized as the mean ± SD
+# Continuous variables of normal distribution were tested by Kolmogorov–Smirnov test
+# Non-normally distributed continuous variables were summarized as the median
+# Student’s t test, One-way ANOVA, Mann–Whitney U or Kruskal–Wallis H test were used to compare continuous data of non-normally distribution, if appropriate.
+# Categorical variables were expressed as numbers or percentage and assessed using Chi-square test or Fisher’s exact test according to different sample sizes as proper
+# Fisher’s uses smaller sample sizes: 20 or 30?
+
+```
+
+#### Table 1
+Baseline characteristics, vital signs, laboratory parameters and statistic results of mimic-III patients with sepsis. 
+
+```{r}
+
+```
+
+#### Figure 2
+
+##### Figure 2a
+Overall ethnicity characteristics pie chart
+
+```{r}
+
+```
+
+##### Figure 2b
+The common sources of infection pie chart
+
+```{r}
+
+```
+
+## Three Predictive Models
+
+### Conventional Logistic Regression Model
+
+```{r}
+
+# conducted using these significant variables identified by backward stepwise analysis with Chi-square test. Then we chose an entry probability of < 0.05 by the stepwise selection method
+
+```
+
+#### Table 2
+Features selected in the conventional logistic regression 
+
+```{r}
+
+```
+
+### SAPS-II Score Model
+
+```{r}
+
+# we used these time-stamp variables to do prediction based on the methods provided by the original literature of SAPS II [16]
+
+```
+
+### XGBoost Algorithm Model
+
+```{r}
+
+# performed XGBoost model [17, 18] to analysis the contribution (gain) of each variable to 30-days mortality
+# at the same time, backward stepwise analysis was processed to select the variable with a threshold of p < 0.05 according to the Akaike information criterion (AIC) [19]
+# After identifying the variables through XGBoost, we used these clinical and laboratory variables included to construct the XGBoost algorithm model
+
+```
+
+#### Table 3
+Features selected in the XGboost model
+
+```{r}
+
+```
+
+#### Figure 3
+Analysis results of each features’ contribution by XGBoost model 
+
+```{r}
+
+```
+
+## Model Comparison
+
+### ROC/AUC and DCA
+
+```{r}
+
+# Tested and compared the performances of the three predictive models by area under curves (AUCs) of the receiver operating characteristic curves (ROC) and decision curve analysis (DCA), then selected the model that achieved the highest overall diagnostic value for further verification
+
+```
+
+#### Figure 4
+ROC curves of the three models
+
+```{r}
+
+```
+
+#### Figure 5
+Decision curve analysis (DCA) of the three prediction models
+
+```{r}
+
+```
+
+
+### Nomogram and Clinical Impact Curve (CIC) 
+
+```{r}
+# At last, nomogram and clinical impact curve (CIC) were plotted to evaluate the clinical usefulness and applicability net benefits of the model with the best diagnostic value
+```
+
+#### Figure 6
+Nomogram to estimate the risk of mortality in sepsis patients (for visualization of the XGboost predictive model)
+
+```{r}
+
+```
+
+#### Figure 7
+Clinical impact curve (CIC) of XGboost model 
+
+```{r}
+
+```
+
+
+# Additional Analyses
+
+# Compare Original to Additional Analysis Methods
+
