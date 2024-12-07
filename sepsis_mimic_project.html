@@ -424,67 +424,14 @@ data &lt;- read_csv(&quot;data/12967_2020_2620_MOESM1_ESM.csv&quot;) </code></pr
 </div>
 <div id="data-cleaning" class="section level2">
 <h2>Data Cleaning</h2>
-<pre class="r"><code>colnames(data)</code></pre>
-<pre><code>##   [1] &quot;icustay_id...1&quot;                    &quot;hadm_id...2&quot;                      
-##   [3] &quot;intime&quot;                            &quot;outtime&quot;                          
-##   [5] &quot;dbsource&quot;                          &quot;suspected_infection_time_poe&quot;     
-##   [7] &quot;suspected_infection_time_poe_days&quot; &quot;specimen_poe&quot;                     
-##   [9] &quot;positiveculture_poe&quot;               &quot;antibiotic_time_poe&quot;              
-##  [11] &quot;blood_culture_time&quot;                &quot;blood_culture_positive&quot;           
-##  [13] &quot;age&quot;                               &quot;gender&quot;                           
-##  [15] &quot;is_male&quot;                           &quot;ethnicity&quot;                        
-##  [17] &quot;race_white&quot;                        &quot;race_black&quot;                       
-##  [19] &quot;race_hispanic&quot;                     &quot;race_other&quot;                       
-##  [21] &quot;metastatic_cancer&quot;                 &quot;diabetes&quot;                         
-##  [23] &quot;first_service&quot;                     &quot;hospital_expire_flag&quot;             
-##  [25] &quot;thirtyday_expire_flag&quot;             &quot;icu_los&quot;                          
-##  [27] &quot;hosp_los&quot;                          &quot;sepsis_angus&quot;                     
-##  [29] &quot;sepsis_martin&quot;                     &quot;sepsis_explicit&quot;                  
-##  [31] &quot;septic_shock_explicit&quot;             &quot;severe_sepsis_explicit&quot;           
-##  [33] &quot;sepsis_nqf&quot;                        &quot;sepsis_cdc&quot;                       
-##  [35] &quot;sepsis_cdc_simple&quot;                 &quot;elixhauser_hospital&quot;              
-##  [37] &quot;vent&quot;                              &quot;sofa&quot;                             
-##  [39] &quot;lods&quot;                              &quot;sirs&quot;                             
-##  [41] &quot;qsofa&quot;                             &quot;qsofa_sysbp_score&quot;                
-##  [43] &quot;qsofa_gcs_score&quot;                   &quot;qsofa_resprate_score&quot;             
-##  [45] &quot;aniongap_min&quot;                      &quot;aniongap_max&quot;                     
-##  [47] &quot;bicarbonate_min&quot;                   &quot;bicarbonate_max&quot;                  
-##  [49] &quot;creatinine_min&quot;                    &quot;creatinine_max&quot;                   
-##  [51] &quot;chloride_min&quot;                      &quot;chloride_max&quot;                     
-##  [53] &quot;glucose_min&quot;                       &quot;glucose_max&quot;                      
-##  [55] &quot;hematocrit_min&quot;                    &quot;hematocrit_max&quot;                   
-##  [57] &quot;hemoglobin_min&quot;                    &quot;hemoglobin_max&quot;                   
-##  [59] &quot;lactate_min&quot;                       &quot;lactate_max&quot;                      
-##  [61] &quot;lactate_mean&quot;                      &quot;platelet_min&quot;                     
-##  [63] &quot;platelet_max&quot;                      &quot;potassium_min&quot;                    
-##  [65] &quot;potassium_max&quot;                     &quot;inr_min&quot;                          
-##  [67] &quot;inr_max&quot;                           &quot;sodium_min&quot;                       
-##  [69] &quot;sodium_max&quot;                        &quot;bun_min&quot;                          
-##  [71] &quot;bun_max&quot;                           &quot;bun_mean&quot;                         
-##  [73] &quot;wbc_min&quot;                           &quot;wbc_max&quot;                          
-##  [75] &quot;wbc_mean&quot;                          &quot;heartrate_min&quot;                    
-##  [77] &quot;heartrate_max&quot;                     &quot;heartrate_mean&quot;                   
-##  [79] &quot;sysbp_min&quot;                         &quot;sysbp_max&quot;                        
-##  [81] &quot;sysbp_mean&quot;                        &quot;diasbp_min&quot;                       
-##  [83] &quot;diasbp_max&quot;                        &quot;diasbp_mean&quot;                      
-##  [85] &quot;meanbp_min&quot;                        &quot;meanbp_max&quot;                       
-##  [87] &quot;meanbp_mean&quot;                       &quot;resprate_min&quot;                     
-##  [89] &quot;resprate_max&quot;                      &quot;resprate_mean&quot;                    
-##  [91] &quot;tempc_min&quot;                         &quot;tempc_max&quot;                        
-##  [93] &quot;tempc_mean&quot;                        &quot;spo2_min&quot;                         
-##  [95] &quot;spo2_max&quot;                          &quot;spo2_mean&quot;                        
-##  [97] &quot;glucose_min1&quot;                      &quot;glucose_max1&quot;                     
-##  [99] &quot;glucose_mean&quot;                      &quot;rrt&quot;                              
-## [101] &quot;subject_id&quot;                        &quot;hadm_id...102&quot;                    
-## [103] &quot;icustay_id...103&quot;                  &quot;urineoutput&quot;                      
-## [105] &quot;colloid_bolus&quot;                     &quot;crystalloid_bolus&quot;</code></pre>
-<pre class="r"><code># Remove duplicates
+<pre class="r"><code># colnames(data)
 
-all(data$icustay_id...1 == data$icustay_id...103) # TRUE</code></pre>
-<pre><code>## [1] TRUE</code></pre>
-<pre class="r"><code>all(data$hadm_id...102 == data$hadm_id...2) # TRUE</code></pre>
-<pre><code>## [1] TRUE</code></pre>
-<pre class="r"><code>data &lt;- data %&gt;% 
+# Remove duplicates
+
+# all(data$icustay_id...1 == data$icustay_id...103) # TRUE
+# all(data$hadm_id...102 == data$hadm_id...2) # TRUE
+
+data &lt;- data %&gt;% 
   mutate(icustay_id = icustay_id...1,
          hadm_id = hadm_id...2
          ) %&gt;% 
@@ -494,8 +441,52 @@ all(data$icustay_id...1 == data$icustay_id...103) # TRUE</code></pre>
 
 # Convert into appropriate data types
 
-# Let&#39;s clean the data before we start doing the analyses
-# Convert categorical variables into factor variables, date variables into datetime, etc</code></pre>
+data &lt;- data %&gt;% 
+  mutate(intime = dmy_hms(intime),
+         outtime = dmy_hms(outtime),
+         dbsource = as_factor(dbsource),
+         suspected_infection_time_poe = dmy_hms(suspected_infection_time_poe),
+         specimen_poe = as_factor(specimen_poe),
+         positiveculture_poe = as_factor(positiveculture_poe),
+         antibiotic_time_poe = dmy_hms(antibiotic_time_poe),
+         blood_culture_time = dmy_hms(blood_culture_time),
+         blood_culture_positive = as_factor(blood_culture_positive),
+         gender = as_factor(gender),
+         is_male = as_factor(is_male), # should we delete this?
+         ethnicity = as_factor(ethnicity),
+         race_white = as_factor(race_white),
+         race_black = as_factor(race_black),
+         race_hispanic = as_factor(race_hispanic),
+         race_other = as_factor(race_other),
+         metastatic_cancer = as_factor(metastatic_cancer),
+         diabetes = as_factor(diabetes),
+         first_service = as_factor(first_service),
+         hospital_expire_flag = as_factor(hospital_expire_flag),
+         thirtyday_expire_flag = as_factor(thirtyday_expire_flag),
+         sepsis_angus = as_factor(sepsis_angus),
+         sepsis_martin = as_factor(sepsis_martin),
+         sepsis_explicit = as_factor(sepsis_explicit),
+         septic_shock_explicit = as_factor(septic_shock_explicit),
+         severe_sepsis_explicit = as_factor(severe_sepsis_explicit),
+         sepsis_nqf = as_factor(sepsis_nqf),
+         sepsis_cdc = as_factor(sepsis_cdc),
+         sepsis_cdc_simple = as_factor(sepsis_cdc_simple),
+         elixhauser_hospital = as_factor(elixhauser_hospital), # what does this mean?
+         vent = as_factor(vent),
+         # sofa
+         # lods
+         # sirs
+         # qsofa
+         qsofa_sysbp_score = as_factor(qsofa_sysbp_score),
+         qsofa_gcs_score = as_factor(qsofa_gcs_score),
+         qsofa_resprate_score = as_factor(qsofa_resprate_score),
+         rrt = as_factor(rrt)
+         # colloid_bolus has 4050 NAs!!! n = 4559!!!
+         # crystalloid_bolus has 1194 NAs
+         # icustayid
+         # hadm_id
+         # subject_id
+  )</code></pre>
 </div>
 </div>
 <div id="article-analysis-reproduction" class="section level1">

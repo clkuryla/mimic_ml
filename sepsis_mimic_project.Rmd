@@ -31,20 +31,18 @@ https://translational-medicine.biomedcentral.com/articles/10.1186/s12967-020-026
 
 data <- read_csv("data/12967_2020_2620_MOESM1_ESM.csv") 
 
-
-
 ```
 
 ## Data Cleaning
 
 ```{r}
 
-colnames(data)
+# colnames(data)
 
 # Remove duplicates
 
-all(data$icustay_id...1 == data$icustay_id...103) # TRUE
-all(data$hadm_id...102 == data$hadm_id...2) # TRUE
+# all(data$icustay_id...1 == data$icustay_id...103) # TRUE
+# all(data$hadm_id...102 == data$hadm_id...2) # TRUE
 
 data <- data %>% 
   mutate(icustay_id = icustay_id...1,
@@ -56,8 +54,52 @@ data <- data %>%
 
 # Convert into appropriate data types
 
-# Let's clean the data before we start doing the analyses
-# Convert categorical variables into factor variables, date variables into datetime, etc
+data <- data %>% 
+  mutate(intime = dmy_hms(intime),
+         outtime = dmy_hms(outtime),
+         dbsource = as_factor(dbsource),
+         suspected_infection_time_poe = dmy_hms(suspected_infection_time_poe),
+         specimen_poe = as_factor(specimen_poe),
+         positiveculture_poe = as_factor(positiveculture_poe),
+         antibiotic_time_poe = dmy_hms(antibiotic_time_poe),
+         blood_culture_time = dmy_hms(blood_culture_time),
+         blood_culture_positive = as_factor(blood_culture_positive),
+         gender = as_factor(gender),
+         is_male = as_factor(is_male), # should we delete this?
+         ethnicity = as_factor(ethnicity),
+         race_white = as_factor(race_white),
+         race_black = as_factor(race_black),
+         race_hispanic = as_factor(race_hispanic),
+         race_other = as_factor(race_other),
+         metastatic_cancer = as_factor(metastatic_cancer),
+         diabetes = as_factor(diabetes),
+         first_service = as_factor(first_service),
+         hospital_expire_flag = as_factor(hospital_expire_flag),
+         thirtyday_expire_flag = as_factor(thirtyday_expire_flag),
+         sepsis_angus = as_factor(sepsis_angus),
+         sepsis_martin = as_factor(sepsis_martin),
+         sepsis_explicit = as_factor(sepsis_explicit),
+         septic_shock_explicit = as_factor(septic_shock_explicit),
+         severe_sepsis_explicit = as_factor(severe_sepsis_explicit),
+         sepsis_nqf = as_factor(sepsis_nqf),
+         sepsis_cdc = as_factor(sepsis_cdc),
+         sepsis_cdc_simple = as_factor(sepsis_cdc_simple),
+         elixhauser_hospital = as_factor(elixhauser_hospital), # what does this mean?
+         vent = as_factor(vent),
+         # sofa
+         # lods
+         # sirs
+         # qsofa
+         qsofa_sysbp_score = as_factor(qsofa_sysbp_score),
+         qsofa_gcs_score = as_factor(qsofa_gcs_score),
+         qsofa_resprate_score = as_factor(qsofa_resprate_score),
+         rrt = as_factor(rrt)
+         # colloid_bolus has 4050 NAs!!! n = 4559!!!
+         # crystalloid_bolus has 1194 NAs
+         # icustayid
+         # hadm_id
+         # subject_id
+  )
 
 ```
 
