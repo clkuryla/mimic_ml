@@ -208,21 +208,25 @@ nonpredictor_cols <- c("intime", "outtime", "dbsource",
 # Exclude redundant variables that used to be factors or are not appropriate for this analysis
 exclude_cols <- c("gender", # This has already been one hot encoded to is_male 1/0
                   "ethnicity", # has also been one hot encoded
+                  "elixhauser_hospital",
                   "first_service", # has 13 levels but not one hot encoded so excluded
-                  "specimen_poe" # has 35 levels but also not one hot encoded
+                  "specimen_poe", # has 35 levels but also not one hot encoded
+                  "colloid_bolus",
+                  "crystalloid_bolus"
                   )
 
 # Remove columns
 model_data <- data_numeric %>%
   select(-all_of(exclude_cols)) %>% 
-  select(-all_of(nonpredictor_cols))
+  select(-all_of(nonpredictor_cols)) %>% 
+  select(-c("hosp_los", "icu_los", "lods")) 
 
 #---------------------------
 # Train-Test Split
 #---------------------------
 
 # Split the data into training and test sets
-set.seed(123)
+set.seed(1248)
 train_index <- createDataPartition(model_data$thirtyday_expire_flag, p = 0.7, list = FALSE)
 train_data <- model_data[train_index, ]
 test_data  <- model_data[-train_index, ]
@@ -278,6 +282,44 @@ head(importance_xg1, 20) %>%
          y = "Feature",
          title = "Original XG Boost Feature Importance")
   
+
+#---------------------------
+# Backward Stepwise Selection Using AIC
+#---------------------------
+
+# After reviewing the importance, we might select a subset of top variables to consider.
+# For demonstration, let's take the top 30 variables by Gain and then run a logistic regression with stepAIC.
+
+# Extract top features
+top_vars <- importance_xg1 %>% 
+  top_n(50, wt = Gain) %>%
+  pull(Feature)
+
+# Filter the dataset to these top variables
+# Use data_vartypes because we are going logistic regression so need categorical variables as factors
+data_top <- data_vartypes %>% 
+  select(thirtyday_expire_flag, all_of(top_vars)) %>% 
+#  select(-c("hosp_los", "icu_los", "lods")) %>% 
+  na.omit()
+
+# data_top <- na.omit(data_top)
+
+
+# Fit a full logistic regression model using these top variables
+full_lr_model <- glm(thirtyday_expire_flag ~ ., data = data_top, family = binomial)
+summary(full_lr_model)
+
+# Perform backward stepwise selection based on AIC
+stepwise_lr_model <- stepAIC(full_lr_model, direction = "backward", trace = FALSE)
+
+# Check the summary of the final model
+summary(stepwise_lr_model)
+
+# The summary will show which variables remain. We can select those final variables:
+final_vars <- names(coef(stepwise_lr_model))[-1]  # remove the intercept
+
+final_vars
+
 
 
 
