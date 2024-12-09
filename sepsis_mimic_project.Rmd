@@ -265,10 +265,19 @@ xgb_model <- xgb.train(
 )
 
 # Extract feature importance
-importance <- xgb.importance(model = xgb_model)
-head(importance, 20)  # Top 20 most important features (by Gain)
+importance_xg1 <- xgb.importance(model = xgb_model)
+head(importance_xg1, 20)  # Top 20 most important features (by Gain)
 
-
+# Plot feature importance
+head(importance_xg1, 20) %>% 
+  ggplot(aes(x = fct_reorder(Feature, Gain, .desc = FALSE), y = Gain)) +
+    geom_col() + 
+    coord_flip() +
+    theme_minimal() +
+    labs(x = "Gain",
+         y = "Feature",
+         title = "Original XG Boost Feature Importance")
+  
 
 
 
