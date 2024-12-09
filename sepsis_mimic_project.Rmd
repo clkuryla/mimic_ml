@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 
+
 library(tidyverse)
 library(xgboost)
 library(MASS)       # for stepAIC
@@ -21,6 +22,7 @@ library(lubridate)  # if needed for date manipulation
 library(conflicted)
 conflict_prefer("select", "dplyr")
 conflict_prefer("filter", "dplyr")
+
 
 ```
 
@@ -186,6 +188,7 @@ Features selected in the conventional logistic regression
 # at the same time, backward stepwise analysis was processed to select the variable with a threshold of p < 0.05 according to the Akaike information criterion (AIC) [19]
 # After identifying the variables through XGBoost, we used these clinical and laboratory variables included to construct the XGBoost algorithm model
 
+
 # Load required packages
 library(tidyverse)
 library(xgboost)
@@ -319,6 +322,7 @@ summary(stepwise_lr_model)
 final_vars <- names(coef(stepwise_lr_model))[-1]  # remove the intercept
 
 final_vars
+
 
 
 
