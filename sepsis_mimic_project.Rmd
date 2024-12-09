@@ -1,0 +1,246 @@
+---
+title: "ML MIMIC Sepsis Project"
+author: "Christine Lucille Kuryla"
+date: "2024-12-07"
+output: 
+  html_document:
+    toc: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+
+```
+
+# Article
+
+Hou, N., Li, M., He, L. et al. Predicting 30-days mortality for MIMIC-III patients with sepsis-3: a machine learning approach using XGboost. J Transl Med 18, 462 (2020). https://doi.org/10.1186/s12967-020-02620-5
+
+https://translational-medicine.biomedcentral.com/articles/10.1186/s12967-020-02620-5 
+
+# Data from online article
+
+## Load Data
+```{r load_data}
+# Downloaded from: https://translational-medicine.biomedcentral.com/articles/10.1186/s12967-020-02620-5#Sec14
+
+# This data has all of the patients included in the study, after they filtered out certain patients due to the exclusion criteria in the paper
+# n = 4559
+
+data <- read_csv("data/12967_2020_2620_MOESM1_ESM.csv") 
+
+# colnames(data)
+
+# Remove duplicates
+
+# all(data$icustay_id...1 == data$icustay_id...103) # TRUE
+# all(data$hadm_id...102 == data$hadm_id...2) # TRUE
+
+data <- data %>% 
+  mutate(icustay_id = icustay_id...1,
+         hadm_id = hadm_id...2
+         ) %>% 
+  select(-c("icustay_id...1", "icustay_id...103",
+            "hadm_id...2", "hadm_id...102"
+            ))
+
+# Some methods need numeric data, some need different variable types. Let's create two dataframes.
+
+data_numeric <- data
+
+# Convert into appropriate data types
+
+data_vartypes <- data %>% 
+  mutate(intime = dmy_hms(intime),
+         outtime = dmy_hms(outtime),
+         dbsource = as_factor(dbsource),
+         suspected_infection_time_poe = dmy_hms(suspected_infection_time_poe),
+         specimen_poe = as_factor(specimen_poe),
+         positiveculture_poe = as_factor(positiveculture_poe),
+         antibiotic_time_poe = dmy_hms(antibiotic_time_poe),
+         blood_culture_time = dmy_hms(blood_culture_time),
+         blood_culture_positive = as_factor(blood_culture_positive),
+         gender = as_factor(gender),
+         is_male = as_factor(is_male), # should we delete this?
+         ethnicity = as_factor(ethnicity),
+         race_white = as_factor(race_white),
+         race_black = as_factor(race_black),
+         race_hispanic = as_factor(race_hispanic),
+         race_other = as_factor(race_other),
+         metastatic_cancer = as_factor(metastatic_cancer),
+         diabetes = as_factor(diabetes),
+         first_service = as_factor(first_service),
+         hospital_expire_flag = as_factor(hospital_expire_flag),
+         thirtyday_expire_flag = as_factor(thirtyday_expire_flag),
+         sepsis_angus = as_factor(sepsis_angus),
+         sepsis_martin = as_factor(sepsis_martin),
+         sepsis_explicit = as_factor(sepsis_explicit),
+         septic_shock_explicit = as_factor(septic_shock_explicit),
+         severe_sepsis_explicit = as_factor(severe_sepsis_explicit),
+         sepsis_nqf = as_factor(sepsis_nqf),
+         sepsis_cdc = as_factor(sepsis_cdc),
+         sepsis_cdc_simple = as_factor(sepsis_cdc_simple),
+         elixhauser_hospital = as_factor(elixhauser_hospital), # what does this mean?
+         vent = as_factor(vent),
+         # sofa
+         # lods
+         # sirs
+         # qsofa
+         qsofa_sysbp_score = as_factor(qsofa_sysbp_score),
+         qsofa_gcs_score = as_factor(qsofa_gcs_score),
+         qsofa_resprate_score = as_factor(qsofa_resprate_score),
+         rrt = as_factor(rrt)
+         # colloid_bolus has 4050 NAs!!! n = 4559!!!
+         # crystalloid_bolus has 1194 NAs
+         # icustayid
+         # hadm_id
+         # subject_id
+  )
+
+
+
+```
+
+# Article Analysis Reproduction 
+
+## Statistical Summaries of Variables
+
+```{r}
+
+# Statistical analysis steps
+# Normally distributed continuous variables were
+# summarized as the mean ± SD
+# Continuous variables of normal distribution were tested by Kolmogorov–Smirnov test
+# Non-normally distributed continuous variables were summarized as the median
+# Student’s t test, One-way ANOVA, Mann–Whitney U or Kruskal–Wallis H test were used to compare continuous data of non-normally distribution, if appropriate.
+# Categorical variables were expressed as numbers or percentage and assessed using Chi-square test or Fisher’s exact test according to different sample sizes as proper
+# Fisher’s uses smaller sample sizes: 20 or 30?
+
+```
+
+#### Table 1
+Baseline characteristics, vital signs, laboratory parameters and statistic results of mimic-III patients with sepsis. 
+
+```{r}
+
+```
+
+#### Figure 2
+
+##### Figure 2a
+Overall ethnicity characteristics pie chart
+
+```{r}
+
+```
+
+##### Figure 2b
+The common sources of infection pie chart
+
+```{r}
+
+```
+
+## Three Predictive Models
+
+### Conventional Logistic Regression Model
+
+```{r}
+
+# conducted using these significant variables identified by backward stepwise analysis with Chi-square test. Then we chose an entry probability of < 0.05 by the stepwise selection method
+
+```
+
+#### Table 2
+Features selected in the conventional logistic regression 
+
+```{r}
+
+```
+
+### SAPS-II Score Model
+
+```{r}
+
+# we used these time-stamp variables to do prediction based on the methods provided by the original literature of SAPS II [16]
+
+```
+
+### XGBoost Algorithm Model
+
+```{r}
+
+# performed XGBoost model [17, 18] to analysis the contribution (gain) of each variable to 30-days mortality
+# at the same time, backward stepwise analysis was processed to select the variable with a threshold of p < 0.05 according to the Akaike information criterion (AIC) [19]
+# After identifying the variables through XGBoost, we used these clinical and laboratory variables included to construct the XGBoost algorithm model
+
+# This is a test my first branch
+
+```
+
+#### Table 3
+Features selected in the XGboost model
+
+```{r}
+
+```
+
+#### Figure 3
+Analysis results of each features’ contribution by XGBoost model 
+
+```{r}
+
+```
+
+## Model Comparison
+
+### ROC/AUC and DCA
+
+```{r}
+
+# Tested and compared the performances of the three predictive models by area under curves (AUCs) of the receiver operating characteristic curves (ROC) and decision curve analysis (DCA), then selected the model that achieved the highest overall diagnostic value for further verification
+
+```
+
+#### Figure 4
+ROC curves of the three models
+
+```{r}
+
+```
+
+#### Figure 5
+Decision curve analysis (DCA) of the three prediction models
+
+```{r}
+
+```
+
+
+### Nomogram and Clinical Impact Curve (CIC) 
+
+```{r}
+# At last, nomogram and clinical impact curve (CIC) were plotted to evaluate the clinical usefulness and applicability net benefits of the model with the best diagnostic value
+```
+
+#### Figure 6
+Nomogram to estimate the risk of mortality in sepsis patients (for visualization of the XGboost predictive model)
+
+```{r}
+
+```
+
+#### Figure 7
+Clinical impact curve (CIC) of XGboost model 
+
+```{r}
+
+```
+
+
+# Additional Analyses
+
+# Compare Original to Additional Analysis Methods
+
