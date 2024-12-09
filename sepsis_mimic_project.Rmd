@@ -12,6 +12,18 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 
+
+library(tidyverse)
+library(xgboost)
+library(MASS)       # for stepAIC
+library(caret)      # for creating dummy variables and data splitting
+library(lubridate)  # if needed for date manipulation
+
+library(conflicted)
+conflict_prefer("select", "dplyr")
+conflict_prefer("filter", "dplyr")
+
+
 ```
 
 # Article
@@ -175,6 +187,145 @@ Features selected in the conventional logistic regression
 # performed XGBoost model [17, 18] to analysis the contribution (gain) of each variable to 30-days mortality
 # at the same time, backward stepwise analysis was processed to select the variable with a threshold of p < 0.05 according to the Akaike information criterion (AIC) [19]
 # After identifying the variables through XGBoost, we used these clinical and laboratory variables included to construct the XGBoost algorithm model
+
+
+# Load required packages
+library(tidyverse)
+library(xgboost)
+library(MASS)       # for stepAIC
+library(caret)      # for creating dummy variables and data splitting
+library(lubridate)  # if needed for date manipulation
+
+#---------------------------
+# Data Preparation
+#---------------------------
+
+# We will start with data_numeric, and adjust as necessary
+
+# Exclude non-predictive columns like IDs, timestamps, or any that are known after outcome.
+nonpredictor_cols <- c("intime", "outtime", "dbsource",
+                       "suspected_infection_time_poe", "antibiotic_time_poe", "blood_culture_time",
+                       "hospital_expire_flag", # If they died in the hospital, they died within 30 days, so this doesn't make sense to include
+                       "subject_id", "icustay_id", "hadm_id")
+
+# Exclude redundant variables that used to be factors or are not appropriate for this analysis
+exclude_cols <- c("gender", # This has already been one hot encoded to is_male 1/0
+                  "ethnicity", # has also been one hot encoded
+                  "elixhauser_hospital",
+                  "first_service", # has 13 levels but not one hot encoded so excluded
+                  "specimen_poe", # has 35 levels but also not one hot encoded
+                  "colloid_bolus",
+                  "crystalloid_bolus"
+                  )
+
+# Remove columns
+model_data <- data_numeric %>%
+  select(-all_of(exclude_cols)) %>% 
+  select(-all_of(nonpredictor_cols)) %>% 
+  select(-c("hosp_los", "icu_los", "lods")) 
+
+#---------------------------
+# Train-Test Split
+#---------------------------
+
+# Split the data into training and test sets
+set.seed(1248)
+train_index <- createDataPartition(model_data$thirtyday_expire_flag, p = 0.7, list = FALSE)
+train_data <- model_data[train_index, ]
+test_data  <- model_data[-train_index, ]
+
+# Separate features and labels
+x_train <- train_data %>% select(-thirtyday_expire_flag)
+y_train <- train_data %>% select(thirtyday_expire_flag)
+#train_y <- train_data$thirtyday_expire_flag
+
+x_test <- test_data %>% select(-thirtyday_expire_flag)
+y_test <- test_data %>% select(thirtyday_expire_flag)
+
+#---------------------------
+# XGBoost Model for Feature Importance
+#---------------------------
+
+# Convert to xgb.DMatrix
+dtrain <- xgb.DMatrix(data = as.matrix(x_train), label = as.matrix(y_train))
+dtest <- xgb.DMatrix(data = as.matrix(x_test), label = as.matrix(y_test))
+
+# Basic parameters for XGBoost - these can be tuned
+params <- list(
+  objective = "binary:logistic",
+  eval_metric = "auc",
+  eta = 0.1,
+  max_depth = 6,
+  min_child_weight = 10,
+  subsample = 0.8,
+  colsample_bytree = 0.8
+)
+
+# Train the model
+xgb_model <- xgb.train(
+  params = params,
+  data = dtrain,
+  nrounds = 100,
+  watchlist = list(train = dtrain, test = dtest),
+  early_stopping_rounds = 10,
+  print_every_n = 10 #verbose = 0
+)
+
+# Extract feature importance
+importance_xg1 <- xgb.importance(model = xgb_model)
+head(importance_xg1, 20)  # Top 20 most important features (by Gain)
+
+# Plot feature importance
+head(importance_xg1, 20) %>% 
+  ggplot(aes(x = fct_reorder(Feature, Gain, .desc = FALSE), y = Gain)) +
+    geom_col() + 
+    coord_flip() +
+    theme_minimal() +
+    labs(x = "Gain",
+         y = "Feature",
+         title = "Original XG Boost Feature Importance")
+  
+
+#---------------------------
+# Backward Stepwise Selection Using AIC
+#---------------------------
+
+# After reviewing the importance, we might select a subset of top variables to consider.
+# For demonstration, let's take the top 30 variables by Gain and then run a logistic regression with stepAIC.
+
+# Extract top features
+top_vars <- importance_xg1 %>% 
+  top_n(50, wt = Gain) %>%
+  pull(Feature)
+
+# Filter the dataset to these top variables
+# Use data_vartypes because we are going logistic regression so need categorical variables as factors
+data_top <- data_vartypes %>% 
+  select(thirtyday_expire_flag, all_of(top_vars)) %>% 
+#  select(-c("hosp_los", "icu_los", "lods")) %>% 
+  na.omit()
+
+# data_top <- na.omit(data_top)
+
+
+# Fit a full logistic regression model using these top variables
+full_lr_model <- glm(thirtyday_expire_flag ~ ., data = data_top, family = binomial)
+summary(full_lr_model)
+
+# Perform backward stepwise selection based on AIC
+stepwise_lr_model <- stepAIC(full_lr_model, direction = "backward", trace = FALSE)
+
+# Check the summary of the final model
+summary(stepwise_lr_model)
+
+# The summary will show which variables remain. We can select those final variables:
+final_vars <- names(coef(stepwise_lr_model))[-1]  # remove the intercept
+
+final_vars
+
+
+
+
 
 ```
 
