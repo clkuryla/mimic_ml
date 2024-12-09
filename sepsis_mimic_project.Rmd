@@ -12,6 +12,16 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 
+library(tidyverse)
+library(xgboost)
+library(MASS)       # for stepAIC
+library(caret)      # for creating dummy variables and data splitting
+library(lubridate)  # if needed for date manipulation
+
+library(conflicted)
+conflict_prefer("select", "dplyr")
+conflict_prefer("filter", "dplyr")
+
 ```
 
 # Article
@@ -176,7 +186,58 @@ Features selected in the conventional logistic regression
 # at the same time, backward stepwise analysis was processed to select the variable with a threshold of p < 0.05 according to the Akaike information criterion (AIC) [19]
 # After identifying the variables through XGBoost, we used these clinical and laboratory variables included to construct the XGBoost algorithm model
 
-# This is a test my first branch
+# Load required packages
+library(tidyverse)
+library(xgboost)
+library(MASS)       # for stepAIC
+library(caret)      # for creating dummy variables and data splitting
+library(lubridate)  # if needed for date manipulation
+
+#---------------------------
+# Data Preparation
+#---------------------------
+
+# We will start with data_numeric, and adjust as necessary
+
+# Exclude non-predictive columns like IDs, timestamps, or any that are known after outcome.
+nonpredictor_cols <- c("intime", "outtime", "dbsource",
+                       "suspected_infection_time_poe", "antibiotic_time_poe", "blood_culture_time",
+                       "subject_id", "icustay_id", "hadm_id")
+
+# Exclude redundant variables that used to be factors or are not appropriate for this analysis
+exclude_cols <- c("gender", # This has already been one hot encoded to is_male 1/0
+                  "ethnicity", # has also been one hot encoded
+                  "first_service", # has 13 levels but not one hot encoded so excluded
+                  "specimen_poe" # has 35 levels but also not one hot encoded
+                  )
+
+# Remove columns
+model_data <- data_numeric %>%
+  select(-all_of(exclude_cols)) %>% 
+  select(-all_of(nonpredictor_cols))
+
+#---------------------------
+# Train-Test Split
+#---------------------------
+
+# Split the data into training and test sets
+set.seed(123)
+train_index <- createDataPartition(model_data$thirtyday_expire_flag, p = 0.7, list = FALSE)
+train_data <- model_data[train_index, ]
+test_data  <- model_data[-train_index, ]
+
+# Separate features and labels
+train_x <- train_data %>% select(-thirtyday_expire_flag)
+train_y <- train_data %>% select(thirtyday_expire_flag)
+#train_y <- train_data$thirtyday_expire_flag
+
+
+test_x <- test_data %>% select(-thirtyday_expire_flag)
+test_y <- test_data %>% select(thirtyday_expire_flag)
+
+
+
+
 
 ```
 
