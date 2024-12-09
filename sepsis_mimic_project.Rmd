@@ -31,12 +31,6 @@ https://translational-medicine.biomedcentral.com/articles/10.1186/s12967-020-026
 
 data <- read_csv("data/12967_2020_2620_MOESM1_ESM.csv") 
 
-```
-
-## Data Cleaning
-
-```{r}
-
 # colnames(data)
 
 # Remove duplicates
@@ -52,9 +46,13 @@ data <- data %>%
             "hadm_id...2", "hadm_id...102"
             ))
 
+# Some methods need numeric data, some need different variable types. Let's create two dataframes.
+
+data_numeric <- data
+
 # Convert into appropriate data types
 
-data <- data %>% 
+data_vartypes <- data %>% 
   mutate(intime = dmy_hms(intime),
          outtime = dmy_hms(outtime),
          dbsource = as_factor(dbsource),
@@ -100,6 +98,8 @@ data <- data %>%
          # hadm_id
          # subject_id
   )
+
+
 
 ```
 
