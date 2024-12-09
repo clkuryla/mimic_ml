@@ -63,7 +63,7 @@ data_vartypes <- data %>%
          blood_culture_time = dmy_hms(blood_culture_time),
          blood_culture_positive = as_factor(blood_culture_positive),
          gender = as_factor(gender),
-         is_male = as_factor(is_male), # should we delete this?
+         # is_male = as_factor(is_male), # should we delete this?
          ethnicity = as_factor(ethnicity),
          race_white = as_factor(race_white),
          race_black = as_factor(race_black),
@@ -149,9 +149,164 @@ The common sources of infection pie chart
 
 ```{r}
 
-# conducted using these significant variables identified by backward stepwise analysis with Chi-square test. Then we chose an entry probability of < 0.05 by the stepwise selection method
+# conducted using these significant variables identified by backward stepwise analysis with Chi-square test. Then we chose an entry probability of <0.05 by the stepwise selection method
+
+library(dplyr)
+library(lubridate)  # For date-time conversions
+library(readr)      # For reading CSV files
+library(MASS)
+```
+
+```{r}
+# CLEAN THE DATA
+# # Fit the full model
+# full_model <- glm(
+#   thirtyday_expire_flag ~ . - dbsource,
+#   data = data_vartypes,
+#   family = binomial
+# )
+# Find columns with only one unique value
+single_level_vars <- sapply(data_vartypes, function(x) is.factor(x) && length(unique(x)) < 2)
+
+# Display these variables
+names(single_level_vars[single_level_vars])
+
+# # Remove single-level factor variables
+# data_vartypes_rmv_a <- data_vartypes[, !single_level_vars]
+
+# Identify numeric columns with zero variance
+zero_variance_vars <- sapply(data_vartypes, function(x) is.numeric(x) && var(x, na.rm = TRUE) == 0)
+
+# Display these variables
+names(zero_variance_vars[zero_variance_vars])
+
+# Check factor levels and missing values
+factor_levels_check <- sapply(data_vartypes, function(x) if (is.factor(x)) length(levels(x)) else NA)
+# factor_levels_check
+
+# Combine problematic variables
+problematic_vars <- c(
+  names(single_level_vars[single_level_vars]),
+  names(zero_variance_vars[zero_variance_vars]),
+  names(single_level_vars[single_level_vars])
+)
+
+# Remove them from the dataset
+data_vartypes_clean <- data_vartypes[, !(names(data_vartypes) %in% problematic_vars)]
+
+str(data_vartypes_clean)
 
 ```
+
+```{r}
+# Fit the full model
+full_model <- glm(
+  thirtyday_expire_flag ~ . - suspected_infection_time_poe_days - is_male - hosp_los - icu_los,
+  data = data_vartypes_clean,
+  family = binomial
+)
+# 
+# Backward stepwise selection
+stepwise_model <- step(
+  full_model,
+  direction = "backward",
+  k = log(nrow(data_vartypes_clean)) # Using BIC
+)
+# # Stepwise selection
+# stepwise_model <- stepAIC(
+#   full_model,
+#   direction = "both",
+#   trace = TRUE
+# )
+# Summarize the final model
+summary(stepwise_model)
+
+
+```
+
+```{r}
+# Convert thirtyday_expire_flag to a factor
+# data_vartypes$thirtyday_expire_flag <- as.factor(data_vartypes$thirtyday_expire_flag)
+
+# Choose predictors (subset)
+predictors <- c("age", "gender", "sofa", "qsofa", "vent", "icu_los", "hosp_los")
+
+# Clean the dataset with no missing values for the selected predictors
+logistic_data <- data_vartypes %>%
+  select(all_of(c(predictors, "thirtyday_expire_flag"))) %>%
+  drop_na()
+
+# Run the logistic regression using the glm function
+# Logistic regression
+logistic_model <- glm(
+  thirtyday_expire_flag ~ age + gender + sofa + qsofa + vent + icu_los + hosp_los,
+  data = logistic_data,
+  family = binomial
+)
+# Summarize the model
+summary(logistic_model)
+
+# Start with a full model including all potential predictors
+full_model <- glm(
+  thirtyday_expire_flag ~ .,
+  # thirtyday_expire_flag ~ age + gender + sofa + qsofa + vent + icu_los + hosp_los + other_predictors,
+  data = logistic_data,
+  family = binomial
+)
+
+# Perform backward stepwise selection
+stepwise_model <- step(
+  full_model,
+  direction = "backward",
+  k = log(nrow(logistic_data))  # Default criterion: BIC; change to AIC if needed
+)
+
+# View the final selected model
+summary(stepwise_model)
+```
+```{r}
+# Start with the full model
+current_model <- glm(
+  thirtyday_expire_flag ~ .,
+  # thirtyday_expire_flag ~ age + gender + sofa + qsofa + vent + icu_los + hosp_los,
+  data = logistic_data,
+  family = binomial
+)
+
+# Iteratively remove variables
+while (TRUE) {
+  model_summary <- summary(current_model)
+  p_values <- coef(model_summary)[, 4]  # Extract p-values for coefficients
+  predictors <- names(p_values)[-1]  # Exclude intercept
+
+  # Check if any predictors have p-value > 0.05
+  if (all(p_values[-1] <= 0.05)) break
+
+  # Find the predictor with the highest p-value
+  highest_p <- max(p_values[-1])
+  variable_to_remove <- predictors[which.max(p_values[-1])]
+  
+  if (length(predictors) <= 1) {
+  warning("All variables have been removed; stopping.")
+  break
+  }
+
+
+  # Update formula by removing the variable
+  formula <- as.formula(paste(
+    "thirtyday_expire_flag ~",
+    paste(setdiff(all.vars(formula(current_model)), variable_to_remove), collapse = " + ")
+  ))
+
+  # Fit the updated model
+  current_model <- glm(formula, data = logistic_data, family = binomial)
+}
+
+
+# Final model after backward elimination
+summary(current_model)
+```
+
 
 #### Table 2
 Features selected in the conventional logistic regression 
