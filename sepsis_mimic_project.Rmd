@@ -212,14 +212,14 @@ exclude_cols <- c("gender", # This has already been one hot encoded to is_male 1
                   "first_service", # has 13 levels but not one hot encoded so excluded
                   "specimen_poe", # has 35 levels but also not one hot encoded
                   "colloid_bolus",
-                  "crystalloid_bolus"
+                  "crystalloid_bolus",
+                  "hosp_los", "icu_los", "lods"
                   )
 
 # Remove columns
 model_data <- data_numeric %>%
   select(-all_of(exclude_cols)) %>% 
-  select(-all_of(nonpredictor_cols)) %>% 
-  select(-c("hosp_los", "icu_los", "lods")) 
+  select(-all_of(nonpredictor_cols)) 
 
 #---------------------------
 # Train-Test Split
@@ -309,19 +309,92 @@ data_top <- data_vartypes %>%
 full_lr_model <- glm(thirtyday_expire_flag ~ ., data = data_top, family = binomial)
 summary(full_lr_model)
 
+# # Check for multicolinearity in the lr
+# car::vif(full_lr_model)
+# alias(full_lr_model)
+# # Identify aliased variables
+# aliased_vars <- rownames(alias(full_lr_model)$Complete)
+# # Remove aliased variables from the dataset
+# data_top_clean <- data_top %>% select(-all_of(aliased_vars))
+# # Refit the logistic regression model
+# full_lr_model_clean <- glm(thirtyday_expire_flag ~ ., data = data_top_clean, family = binomial)
+# # Calculate VIF for the cleaned model
+# vif_values <- car::vif(full_lr_model_clean)
+# #print(vif_values)
+
+
+
+
 # Perform backward stepwise selection based on AIC
 stepwise_lr_model <- stepAIC(full_lr_model, direction = "backward", trace = FALSE)
 
 # Check the summary of the final model
 summary(stepwise_lr_model)
 
+###############################
+# I'm not sure if here I should only keep the statistically significant ones
+###############################
+
 # The summary will show which variables remain. We can select those final variables:
 final_vars <- names(coef(stepwise_lr_model))[-1]  # remove the intercept
 
 final_vars
 
+# Remove trailing '1' from variable names dynamically
+final_vars <- str_remove(final_vars, "1$")
+print(final_vars)
 
 
+# ---------------------------------------------------------
+# Refitting XGBoost With Selected Variables
+# ---------------------------------------------------------
+
+# Extract the first column dynamically using dplyr
+y_test <- y_test %>% pull(1)
+
+# Use only the selected variables
+train_x_selected <- train_data %>% select(all_of(final_vars))
+test_x_selected  <- test_data %>% select(all_of(final_vars))
+
+dtrain_selected <- xgb.DMatrix(data = as.matrix(train_x_selected), 
+                               label = as.matrix(y_train))
+dtest_selected  <- xgb.DMatrix(data = as.matrix(test_x_selected), 
+                               label = as.matrix(y_test))
+
+# Retrain XGBoost model with the selected variables
+set.seed(123)
+xgb_final_model <- xgb.train(
+  params = params,
+  data = dtrain_selected,
+  nrounds = 100,
+  watchlist = list(train = dtrain_selected, test = dtest_selected),
+  early_stopping_rounds = 10,
+  verbose = 0
+)
+
+# Evaluate final model performance
+preds <- predict(xgb_final_model, dtest_selected)
+roc_obj <- pROC::roc(response = y_test, # y_test <- y_test %>% pull(1)
+                     predictor = preds)
+auc_val <- pROC::auc(roc_obj)
+cat("Final model AUC:", auc_val, "\n")
+
+# Plot the ROC curve
+plot(roc_obj, col = "blue", main = "ROC Curve")
+
+# Feature importance on the reduced model
+final_importance <- xgb.importance(feature_names = colnames(train_x_selected), model = xgb_final_model)
+print(final_importance)
+
+# Plot feature importance
+head(final_importance, 20) %>% 
+  ggplot(aes(x = fct_reorder(Feature, Gain, .desc = FALSE), y = Gain)) +
+    geom_col() + 
+    coord_flip() +
+    theme_minimal() +
+    labs(x = "Gain",
+         y = "Feature",
+         title = "Final XG Boost Feature Importance")
 
 ```
 
