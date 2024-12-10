@@ -376,11 +376,11 @@ xgb_final_model <- xgb.train(
 )
 
 # Evaluate final model performance
-preds <- predict(xgb_final_model, dtest_selected)
+xg_preds <- predict(xgb_final_model, dtest_selected)
 
 library(pROC)
 roc_obj <- pROC::roc(response = y_test, # y_test <- y_test %>% pull(1)
-                     predictor = preds)
+                     predictor = xg_preds)
 auc_val <- pROC::auc(roc_obj)
 cat("Final model AUC:", auc_val, "\n")
 
