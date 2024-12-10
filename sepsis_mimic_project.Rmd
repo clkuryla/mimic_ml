@@ -374,13 +374,15 @@ xgb_final_model <- xgb.train(
 
 # Evaluate final model performance
 preds <- predict(xgb_final_model, dtest_selected)
+
+library(pROC)
 roc_obj <- pROC::roc(response = y_test, # y_test <- y_test %>% pull(1)
                      predictor = preds)
 auc_val <- pROC::auc(roc_obj)
 cat("Final model AUC:", auc_val, "\n")
 
 # Plot the ROC curve
-plot(roc_obj, col = "blue", main = "ROC Curve")
+plot(roc_obj, col = "blue", main = paste0("Final XGBoost ROC Curve (AUC = ", round(auc(roc_obj),4) , ")"))
 
 # Feature importance on the reduced model
 final_importance <- xgb.importance(feature_names = colnames(train_x_selected), model = xgb_final_model)
