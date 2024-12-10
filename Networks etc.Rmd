@@ -1,0 +1,41 @@
+---
+title: "Networks etc"
+author: "Christine Lucille Kuryla"
+date: "2024-11-25"
+output: html_document
+---
+
+https://chatgpt.com/share/6743c186-a178-8002-a984-7ce85fe5ce23
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Article
+
+Hou, N., Li, M., He, L. et al. Predicting 30-days mortality for MIMIC-III patients with sepsis-3: a machine learning approach using XGboost. J Transl Med 18, 462 (2020). https://doi.org/10.1186/s12967-020-02620-5
+
+https://translational-medicine.biomedcentral.com/articles/10.1186/s12967-020-02620-5 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+
+```
+
+## Data from online article
+
+```{r}
+# Downloaded from: https://translational-medicine.biomedcentral.com/articles/10.1186/s12967-020-02620-5#Sec14
+
+# This data has all of the patients included in the study, after they filtered out certain patients due to the exclusion criteria in the paper
+# n = 4559
+
+data <- read_csv("data/12967_2020_2620_MOESM1_ESM.csv")
+
+```
+
+```
+
