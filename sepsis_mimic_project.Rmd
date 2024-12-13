@@ -321,7 +321,107 @@ Features selected in the conventional logistic regression
 
 ```{r}
 
+# we used these time-stamp varia
 # we used these time-stamp variables to do prediction based on the methods provided by the original literature of SAPS II [16]
+
+calculate_saps2 <- function(age, heartrate, sysbp_min, sysbp_max, temp, bun, urineoutput,
+                            sodium_min, sodium_max, potassium_min, potassium_max,
+                            bicarbonate, wbc_min, wbc_max) {
+  age_score <- ifelse(age < 40, 0,
+                      ifelse(age >= 40 & age <= 59, 7,
+                             ifelse(age >= 60 & age <= 69, 12,
+                                    ifelse(age >= 70 & age <= 74, 15,
+                                           ifelse(age >= 75, 18, NA)))))
+  
+  hr_score <- ifelse(heartrate < 40, 11,
+                     ifelse(heartrate >= 40 & heartrate <= 69, 2,
+                            ifelse(heartrate >= 70 & heartrate <= 119, 0,
+                                   ifelse(heartrate >= 120 & heartrate <= 159, 4,
+                                          ifelse(heartrate >= 160, 7, NA)))))
+  
+  worst_sbp <- pmin(sysbp_min, sysbp_max, na.rm = TRUE)
+  sbp_score <- ifelse(worst_sbp < 70, 13,
+                      ifelse(worst_sbp >= 70 & worst_sbp <= 99, 5,
+                             ifelse(worst_sbp >= 100 & worst_sbp <= 199, 0,
+                                    ifelse(worst_sbp >= 200, 2, NA))))
+  
+  temp_score <- ifelse(temp < 39, 0, 
+                       ifelse(temp >= 39, 3, NA))
+  
+  bun_score <- ifelse(bun < 28, 0,
+                      ifelse(bun >= 28 & bun <= 83, 6,
+                             ifelse(bun > 83, 10, NA)))
+  
+  urine_score <- ifelse(urineoutput >= 1000, 0,
+                        ifelse(urineoutput >= 500 & urineoutput < 1000, 4,
+                               ifelse(urineoutput < 500, 11, NA)))
+  
+  worst_sodium <- pmin(sodium_min, sodium_max, na.rm = TRUE)
+  sodium_score <- ifelse(worst_sodium < 125, 5,
+                         ifelse(worst_sodium >= 125 & worst_sodium <= 144, 0,
+                                ifelse(worst_sodium > 144, 1, NA)))
+  
+  worst_potassium <- pmax(potassium_min, potassium_max, na.rm = TRUE)
+  potassium_score <- ifelse(worst_potassium < 3, 3,
+                            ifelse(worst_potassium >= 3 & worst_potassium <= 5.4, 0,
+                                   ifelse(worst_potassium > 5.4, 3, NA)))
+  
+  bicarbonate_score <- ifelse(bicarbonate >= 20, 0,
+                              ifelse(bicarbonate < 20, 6, NA))
+  
+  worst_wbc <- pmin(wbc_min, wbc_max, na.rm = TRUE)
+  wbc_score <- ifelse(worst_wbc < 1, 12,
+                      ifelse(worst_wbc >= 1 & worst_wbc <= 19.9, 0,
+                             ifelse(worst_wbc > 19.9, 3, NA)))
+  
+  total_score <- rowSums(cbind(age_score, hr_score, sbp_score, temp_score, bun_score, 
+                               urine_score, sodium_score, potassium_score, 
+                               bicarbonate_score, wbc_score), na.rm = TRUE)
+  
+  return(total_score)
+}
+
+saps2_score <- calculate_saps2(data$age, data$heartrate_mean, data$sysbp_min, 
+                                    data$sysbp_max, data$tempc_max, data$bun_max, 
+                                    data$urineoutput, data$sodium_min, data$sodium_max, 
+                                    data$potassium_min, data$potassium_max, 
+                                    data$bicarbonate_min, data$wbc_min, data$wbc_max)
+
+threshold <- 50  # check 
+
+predicted_mortality <- ifelse(saps2_score > threshold, 1, 0)  # 1 = Predicted to die, 0 = Predicted to survive
+
+confusion_matrix <- table(Predicted = data$predicted_mortality, Actual = data$hospital_expire_flag)
+
+print("Confusion Matrix:")
+print(confusion_matrix)
+
+true_positive <- confusion_matrix[2, 2]  # Predicted to die and actually died
+false_positive <- confusion_matrix[2, 1]  # Predicted to die but survived
+true_negative <- confusion_matrix[1, 1]  # Predicted to survive and actually survived
+false_negative <- confusion_matrix[1, 2]  # Predicted to survive but died
+
+accuracy <- (true_positive + true_negative) / sum(confusion_matrix)
+precision <- true_positive / (true_positive + false_positive)
+recall <- true_positive / (true_positive + false_negative)
+f1_score <- 2 * (precision * recall) / (precision + recall)
+
+cat("Accuracy:", accuracy, "\n")
+cat("Precision:", precision, "\n")
+cat("Recall (Sensitivity):", recall, "\n")
+cat("F1-Score:", f1_score, "\n")
+
+library(pROC)
+
+data$hospital_expire_flag <- as.numeric(data$hospital_expire_flag)
+
+roc_curve <- roc(data$hospital_expire_flag, data$saps2_score)
+
+plot(roc_curve, col = "blue", main = "ROC Curve for SAPS II Predictions")
+abline(a = 0, b = 1, lty = 2, col = "red")  
+
+auc_value <- auc(roc_curve)
+cat("Area Under the Curve (AUC):", auc_value, "\n")
 
 ```
 
