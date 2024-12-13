@@ -163,6 +163,151 @@ The common sources of infection pie chart
 
 # conducted using these significant variables identified by backward stepwise analysis with Chi-square test. Then we chose an entry probability of < 0.05 by the stepwise selection method
 
+# Load required packages
+library(tidyverse)
+library(MASS)       # for stepAIC
+library(caret)      # for creating dummy variables and data splitting
+
+#---------------------------
+# Data Preparation
+#---------------------------
+
+# Start with your data, excluding non-predictive or redundant columns
+nonpredictor_cols <- c("intime", "outtime", "dbsource",
+                       "suspected_infection_time_poe", "antibiotic_time_poe", "blood_culture_time",
+                       "hospital_expire_flag", # If they died in the hospital, they died within 30 days, so this doesn't make sense to include
+                       "subject_id", "icustay_id", "hadm_id")
+
+exclude_cols <- c("gender", "ethnicity", "elixhauser_hospital",
+                  "first_service", "specimen_poe", "colloid_bolus",
+                  "crystalloid_bolus", "hosp_los", "icu_los", "lods")
+
+# Remove columns
+model_data <- data_vartypes %>%
+  select(-all_of(exclude_cols)) %>% 
+  select(-all_of(nonpredictor_cols)) 
+
+#---------------------------
+# Train-Test Split
+#---------------------------
+
+# Split the data into training and test sets
+set.seed(1248)
+train_index <- createDataPartition(model_data$thirtyday_expire_flag, p = 0.7, list = FALSE)
+train_data <- model_data[train_index, ]
+test_data  <- model_data[-train_index, ]
+
+# Remove rows with missing values
+train_data <- na.omit(train_data)
+
+# Double-check
+sum(is.na(train_data))  # Should return 0
+
+
+#---------------------------
+# Full Logistic Regression Model
+#---------------------------
+
+# Fit the full logistic regression model
+full_lr_model <- glm(thirtyday_expire_flag ~ ., data = train_data, family = binomial)
+
+# Summarize the full model
+summary(full_lr_model)
+
+#---------------------------
+# Backward Stepwise Selection Using AIC
+#---------------------------
+
+# Perform backward stepwise selection
+stepwise_lr_model <- stepAIC(full_lr_model, direction = "backward", trace = FALSE)
+
+# Check the summary of the final model
+summary(stepwise_lr_model)
+
+# Extract the final variables
+final_vars <- names(coef(stepwise_lr_model))[-1]  # Remove intercept
+print(final_vars)
+# Remove trailing '1' from variable names dynamically
+final_vars <- str_remove(final_vars, "1$")
+print(final_vars)
+#---------------------------
+# Final Logistic Regression Model
+#---------------------------
+
+# Refit logistic regression using only the selected variables
+final_train_data <- train_data %>% select(thirtyday_expire_flag, all_of(final_vars))
+final_test_data <- test_data %>% select(thirtyday_expire_flag, all_of(final_vars))
+
+final_lr_model <- glm(thirtyday_expire_flag ~ ., data = final_train_data, family = binomial)
+
+# Summarize the final model
+summary(final_lr_model)
+```
+
+```{r}
+#---------------------------
+# Model Evaluation
+#---------------------------
+
+# Predict on the test set
+pred_probs <- predict(final_lr_model, newdata = final_test_data, type = "response")
+final_test_data$pred <- pred_probs
+
+# Convert probabilities to binary outcomes
+threshold <- 0.5
+pred_classes <- ifelse(pred_probs > threshold, 1, 0)
+
+# Confusion Matrix
+conf_matrix <- table(Predicted = pred_classes, Actual = final_test_data$thirtyday_expire_flag)
+print(conf_matrix)
+
+# Calculate accuracy, sensitivity, and specificity
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+cat("Accuracy:", accuracy, "\n")
+
+# Calculate AUC using pROC
+library(pROC)
+roc_obj <- roc(final_test_data$thirtyday_expire_flag, pred_probs)
+auc_val <- auc(roc_obj)
+cat("AUC:", auc_val, "\n")
+
+# Plot ROC curve
+plot(roc_obj, col = "blue", main = paste("ROC Curve (AUC =", round(auc_val, 4), ")"))
+
+
+# Impute missing values (e.g., using the median for numeric variables)
+final_test_data <- final_test_data %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.na(.), median(., na.rm = TRUE), .)))
+
+
+# Decision curve analysis for the test dataset
+dca_result <- decision_curve(
+  formula = thirtyday_expire_flag ~ pred,
+  data = final_test_data,
+  family = binomial(link = "logit"),
+  thresholds = seq(0, 1, by = 0.01),
+  confidence.intervals = FALSE
+)
+# Plot decision curve
+plot_decision_curve(
+  dca_result,
+  xlab = "Threshold Probability",
+  ylab = "Net Benefit",
+  legend.position = "right"
+)
+
+#---------------------------
+# Plot the Clinical Impact Curve
+#---------------------------
+
+# Clinical impact curve for test dataset
+plot_clinical_impact(
+  dca_result,
+  population.size = 100,   # Represent per 100 patients
+  xlab = "Threshold Probability",
+  ylab = "Number of Patients per 100"
+)
+
 ```
 
 #### Table 2
@@ -195,6 +340,7 @@ library(xgboost)
 library(MASS)       # for stepAIC
 library(caret)      # for creating dummy variables and data splitting
 library(lubridate)  # if needed for date manipulation
+library(rmda)       # for decision curve analysis
 
 #---------------------------
 # Data Preparation
@@ -326,8 +472,6 @@ summary(full_lr_model)
 # #print(vif_values)
 
 
-
-
 # Perform backward stepwise selection based on AIC
 stepwise_lr_model <- stepAIC(full_lr_model, direction = "backward", trace = FALSE)
 
@@ -378,6 +522,10 @@ xgb_final_model <- xgb.train(
 # Evaluate final model performance
 xg_preds <- predict(xgb_final_model, dtest_selected)
 
+# Add predictions to the data frame
+# test_data$pred <- xg_preds
+# test_data$pred <- predict(xgb_final_model, dtest_selected)
+
 library(pROC)
 roc_obj <- pROC::roc(response = y_test, # y_test <- y_test %>% pull(1)
                      predictor = xg_preds)
@@ -425,6 +573,62 @@ Analysis results of each features’ contribution by XGBoost model
 ```{r}
 
 # Tested and compared the performances of the three predictive models by area under curves (AUCs) of the receiver operating characteristic curves (ROC) and decision curve analysis (DCA), then selected the model that achieved the highest overall diagnostic value for further verification
+
+
+# 
+# # Identify best model by AUC
+# best_model <- metrics_table %>%
+#   arrange(desc(mean_roc_auc)) %>%
+#   slice(1) %>%
+#   pull(model)
+# 
+# best_spec <- model_specs[[best_model]]
+# 
+# final_wf <- workflow() %>%
+#   add_recipe(rec) %>%
+#   add_model(best_spec) %>%
+#   fit(data = data)
+# 
+# # Get predicted probabilities from the final model
+# final_preds <- predict(final_wf, new_data = data, type = "prob") %>%
+#   bind_cols(data) %>%
+#   rename(pred = .pred_1)
+
+# Generate predicted probabilities
+# train_data$pred <- predict(xgb_final_model, dtrain)
+test_data$pred <- predict(xgb_final_model, dtest_selected)
+
+#---------------------------
+# Perform Decision Curve Analysis (DCA)
+#---------------------------
+
+# Decision curve analysis for the test dataset
+dca_result <- decision_curve(
+  formula = thirtyday_expire_flag ~ pred,
+  data = test_data,
+  family = binomial(link = "logit"),
+  thresholds = seq(0, 1, by = 0.01),
+  confidence.intervals = FALSE
+)
+# Plot decision curve
+plot_decision_curve(
+  dca_result,
+  xlab = "Threshold Probability",
+  ylab = "Net Benefit",
+  legend.position = "right"
+)
+
+#---------------------------
+# Plot the Clinical Impact Curve
+#---------------------------
+
+# Clinical impact curve for test dataset
+plot_clinical_impact(
+  dca_result,
+  population.size = 100,   # Represent per 100 patients
+  xlab = "Threshold Probability",
+  ylab = "Number of Patients per 100"
+)
 
 ```
 
