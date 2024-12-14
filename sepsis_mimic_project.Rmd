@@ -387,7 +387,7 @@ saps2_score <- calculate_saps2(data$age, data$heartrate_mean, data$sysbp_min,
                                     data$potassium_min, data$potassium_max, 
                                     data$bicarbonate_min, data$wbc_min, data$wbc_max)
 
-threshold <- 50  # check 
+threshold <- 35  # check 
 
 predicted_mortality <- ifelse(saps2_score > threshold, 1, 0)  # 1 = Predicted to die, 0 = Predicted to survive
 
@@ -413,9 +413,9 @@ cat("F1-Score:", f1_score, "\n")
 
 library(pROC)
 
-data$hospital_expire_flag <- as.numeric(data$hospital_expire_flag)
+thirtyday_expire_flag <- as.numeric(data$thirtyday_expire_flag)
 
-roc_curve <- roc(data$hospital_expire_flag, data$saps2_score)
+roc_curve <- roc(thirtyday_expire_flag, saps2_score)
 
 plot(roc_curve, col = "blue", main = "ROC Curve for SAPS II Predictions")
 abline(a = 0, b = 1, lty = 2, col = "red")  
