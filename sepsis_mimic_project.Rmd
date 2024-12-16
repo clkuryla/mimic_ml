@@ -328,6 +328,8 @@ Features selected in the conventional logistic regression
 # we used these time-stamp varia
 # we used these time-stamp variables to do prediction based on the methods provided by the original literature of SAPS II [16]
 
+# we used these time-stamp variables to do prediction based on the methods provided by the original literature of SAPS II [16]
+
 calculate_saps2 <- function(age, heartrate, sysbp_min, sysbp_max, temp, bun, urineoutput,
                             sodium_min, sodium_max, potassium_min, potassium_max,
                             bicarbonate, wbc_min, wbc_max) {
@@ -393,39 +395,39 @@ saps2_score <- calculate_saps2(data$age, data$heartrate_mean, data$sysbp_min,
 
 threshold <- 35  # check 
 
-predicted_mortality <- ifelse(saps2_score > threshold, 1, 0)  # 1 = Predicted to die, 0 = Predicted to survive
+saps_predicted_mortality <- ifelse(saps2_score > threshold, 1, 0)  # 1 = Predicted to die, 0 = Predicted to survive
 
-confusion_matrix <- table(Predicted = data$predicted_mortality, Actual = data$hospital_expire_flag)
+saps_confusion_matrix <- table(Predicted = saps_predicted_mortality, Actual = data$hospital_expire_flag)
 
 print("Confusion Matrix:")
-print(confusion_matrix)
+print(saps_confusion_matrix)
 
-true_positive <- confusion_matrix[2, 2]  # Predicted to die and actually died
-false_positive <- confusion_matrix[2, 1]  # Predicted to die but survived
-true_negative <- confusion_matrix[1, 1]  # Predicted to survive and actually survived
-false_negative <- confusion_matrix[1, 2]  # Predicted to survive but died
+saps_true_positive <- saps_confusion_matrix[2, 2]  # Predicted to die and actually died
+saps_false_positive <- saps_confusion_matrix[2, 1]  # Predicted to die but survived
+saps_true_negative <- saps_confusion_matrix[1, 1]  # Predicted to survive and actually survived
+saps_false_negative <- saps_confusion_matrix[1, 2]  # Predicted to survive but died
 
-accuracy <- (true_positive + true_negative) / sum(confusion_matrix)
-precision <- true_positive / (true_positive + false_positive)
-recall <- true_positive / (true_positive + false_negative)
-f1_score <- 2 * (precision * recall) / (precision + recall)
+saps_accuracy <- (saps_true_positive + saps_true_negative) / sum(saps_confusion_matrix)
+saps_precision <- saps_true_positive / (saps_true_positive + saps_false_positive)
+saps_recall <- saps_true_positive / (saps_true_positive + saps_false_negative)
+saps_f1_score <- 2 * (saps_precision * saps_recall) / (saps_precision + saps_recall)
 
-cat("Accuracy:", accuracy, "\n")
-cat("Precision:", precision, "\n")
-cat("Recall (Sensitivity):", recall, "\n")
-cat("F1-Score:", f1_score, "\n")
+cat("Accuracy:", saps_accuracy, "\n")
+cat("Precision:", saps_precision, "\n")
+cat("Recall (Sensitivity):", saps_recall, "\n")
+cat("F1-Score:", saps_f1_score, "\n")
 
 library(pROC)
 
-thirtyday_expire_flag <- as.numeric(data$thirtyday_expire_flag)
+saps_thirtyday_expire_flag <- as.numeric(data$thirtyday_expire_flag)
 
-roc_curve <- roc(thirtyday_expire_flag, saps2_score)
+saps_roc_curve <- roc(saps_thirtyday_expire_flag, saps2_score)
 
-plot(roc_curve, col = "blue", main = "ROC Curve for SAPS II Predictions")
+plot(saps_roc_curve, col = "blue", main = "ROC Curve for SAPS II Predictions")
 abline(a = 0, b = 1, lty = 2, col = "red")  
 
-auc_value <- auc(roc_curve)
-cat("Area Under the Curve (AUC):", auc_value, "\n")
+saps_auc_value <- auc(saps_roc_curve)
+cat("Area Under the Curve (AUC):", saps_auc_value, "\n")
 
 ```
 
