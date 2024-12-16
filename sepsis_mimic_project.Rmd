@@ -428,7 +428,6 @@ cat("Area Under the Curve (AUC):", auc_value, "\n")
 ### XGBoost Algorithm Model
 
 ```{r}
-
 # performed XGBoost model [17, 18] to analysis the contribution (gain) of each variable to 30-days mortality
 # at the same time, backward stepwise analysis was processed to select the variable with a threshold of p < 0.05 according to the Akaike information criterion (AIC) [19]
 # After identifying the variables through XGBoost, we used these clinical and laboratory variables included to construct the XGBoost algorithm model
@@ -488,6 +487,28 @@ y_train <- train_data %>% select(thirtyday_expire_flag)
 x_test <- test_data %>% select(-thirtyday_expire_flag)
 y_test <- test_data %>% select(thirtyday_expire_flag)
 
+###############
+# Some models cannot handle NAs. (Like Random Forest)
+colSums(is.na(model_data))
+# There are not many, compared to the size of the dataset, so we will just remove them
+
+train_data_na_omit <- model_data[train_index, ] %>% na.omit()
+test_data_na_omit  <- model_data[-train_index, ] %>% na.omit()
+
+# Separate features and labels
+x_train_na_omit <- train_data %>% na.omit() %>% select(-thirtyday_expire_flag)
+y_train_na_omit <- train_data %>% na.omit() %>% select(thirtyday_expire_flag)
+#train_y <- train_data$thirtyday_expire_flag
+
+x_test_na_omit <- test_data %>% na.omit() %>% select(-thirtyday_expire_flag)
+y_test_na_omit <- test_data %>% na.omit() %>% select(thirtyday_expire_flag)
+
+
+
+```
+
+
+```{r}
 #---------------------------
 # XGBoost Model for Feature Importance
 #---------------------------
@@ -769,6 +790,277 @@ Clinical impact curve (CIC) of XGboost model
 
 
 # Additional Analyses
+
+## Tree-Based Methods
+
+### Decision Trees
+
+```{r}
+
+# Split the data into training and test sets
+set.seed(1248)
+train_index <- createDataPartition(model_data$thirtyday_expire_flag, p = 0.7, list = FALSE)
+train_data <- model_data[train_index, ]
+test_data  <- model_data[-train_index, ]
+
+# We will now analyze the data using various tree-based methods
+
+library(tree)
+
+tree_sepsis <- tree(thirtyday_expire_flag ~ . , train_data)
+summary(tree_sepsis)
+plot(tree_sepsis)
+text(tree_sepsis, pretty = 0)
+
+
+tree_cv <- cv.tree(tree_sepsis)
+tree_cv
+plot ( tree_cv$size , tree_cv$dev , type = "b")
+plot ( tree_cv$k , tree_cv$dev , type = "b")
+
+tree_cv <- cv.tree(tree_sepsis, FUN = prune.misclass)
+tree_cv
+
+plot ( tree_cv$size , tree_cv$dev , type = "b")
+plot ( tree_cv$k , tree_cv$dev , type = "b")
+
+tree_pruned <- prune.misclass(tree_sepsis, best = 6)
+plot(tree_pruned)
+text(tree_pruned, pretty = 0)
+
+model_tree_pruned <- prune.misclass(tree_sepsis, best = 6)
+pred_tree_pruned <- predict(tree_pruned_model, test_data, type = "class")
+
+# For fun, fit on all data:
+tree_sepsis_full <- tree(thirtyday_expire_flag ~ . , model_data)
+summary(tree_sepsis_full)
+plot(tree_sepsis_full)
+text(tree_sepsis_full, pretty = 0)
+
+# Those variables are familiar!!
+
+```
+
+### Bagging and Random Forest
+
+```{r, eval = FALSE}
+
+library(randomForest)
+
+# Bagging
+set.seed(1)
+bag_sepsis <- randomForest(thirtyday_expire_flag ~ ., 
+                           data = train_data,
+                           )
+
+
+
+
+
+# Random Forest
+
+model_data <- model_data %>% na.omit()
+train_data <- model_data %>% na.omit()
+test_data <- test_data %>% na.omit()
+
+
+# Fit model with default parameters
+library(randomForest)
+set.seed(1248)
+model_rf_baseline <- randomForest(thirtyday_expire_flag ~ ., data = train_data, importance = TRUE)
+#saveRDS(model_rf_baseline, "models_etc/model_rf_baseline.rds")
+
+
+# Evaluate
+pred_rf_baseline <- predict(rf_baseline, test_data)
+# saveRDS(pred_rf_baseline, "models_etc/pred_rf_baseline.rds")
+
+library(caret)
+cm <- confusionMatrix(predictions, test_data %>% pull(thirtyday_expire_flag))
+cm 
+
+# write.csv(data.frame(predictions = predictions), "predictions.csv", row.names = FALSE)
+# saveRDS(cm, "confusion_matrix.rds")
+# write.csv(importance(rf_final), "feature_importance.csv", row.names = TRUE)
+
+# Tune parameters manually 
+
+# cm$overall['Accuracy']
+# cm$overall['Sensitivity']
+# 
+# # Tuning
+# 
+# # mtry
+# mtry_values <- seq(2, sqrt(ncol(train) - 1), by = 1) 
+# mtry_results <- data.frame(mtry = mtry_values, 
+#                       Accuracy = NA,
+#                       Sensitivity = NA,
+#                       Specificity = NA,
+#                       PPV = NA,
+#                       NPV = NA,
+#                       Prevalence = NA,
+#                       Detection_Rate = NA,
+#                       Detection_Prevalence = NA,
+#                       Balanced_Accuracy = NA,
+#                       Precision = NA,
+#                       Recall = NA
+#                       )
+# 
+# for (i in 1:length(mtry_values)) {
+#   set.seed(1248)
+#   rf <- randomForest(thirtyday_expire_flag ~ ., data = train_data, mtry = mtry_values[i])
+#   predictions <- predict(rf, test_data)
+#   cm <- confusionMatrix(predictions, test$target)
+#   mtry_results$Accuracy[i] <- cm$overall['Accuracy']
+#   mtry_results$Sensitivity[i] <- cm$byClass['Sensitivity']
+#   mtry_results$Specificity[i] <- cm$byClass['Specificity']
+#   mtry_results$PPV[i] <- cm$byClass['Pos Pred Value']
+#   mtry_results$NPV[i] <- cm$byClass['Neg Pred Value']
+#   mtry_results$Prevalence[i] <- cm$byClass['Prevalence']
+#   mtry_results$Detection_Rate[i] <- cm$byClass['Detection Rate']
+#   mtry_results$Detection_Prevalence[i] <- cm$byClass['Detection Prevalence']
+#   mtry_results$Balanced_Accuracy[i] <- cm$byClass['Balanced Accuracy']
+#   mtry_results$Precision[i] <- cm$byClass['Precision']
+#   mtry_results$Recall[i] <- cm$byClass['Recall']
+# }
+# 
+# library(reshape2)
+# mtry_results_melted <- melt(mtry_results)
+# 
+# ggplot(mtry_results_melted, aes(x = mtry, y = Accuracy)) +
+#   geom_line() +
+#   geom_point() +
+#   labs(title = "Tuning mtry", x = "Number of Variables (mtry)", y = "Accuracy")
+# 
+# 
+# # do the same for ntree and nodesize (minimmum size of terminal nodes)
+# 
+# # Optimized parameters
+# rf_final <- randomForest(
+#   thirtyday_expire_flag ~ ., 
+#   data = train_data, 
+#   mtry = best_mtry, 
+#   ntree = best_ntree, 
+#   importance = TRUE
+# )
+# 
+# predictions_final <- predict(rf_final, test)
+# confusionMatrix(predictions_final, test$target)
+# 
+# varImpPlot(rf_final)
+
+# Example: Store results for combined tuning of mtry and ntree
+tuning_results <- expand.grid(mtry = 1:(ncol(train) - 1), ntree = seq(50, 500, by = 50))
+tuning_results$Accuracy <- NA
+
+# Loop through combinations
+for (i in 1:nrow(tuning_results)) {
+  rf_tuned <- randomForest(target ~ ., data = train, 
+                           mtry = tuning_results$mtry[i],
+                           ntree = tuning_results$ntree[i])
+  pred <- predict(rf_tuned, test)
+  cm <- confusionMatrix(pred, test$target)
+  tuning_results$Accuracy[i] <- cm$overall["Accuracy"]
+}
+
+# Plot Accuracy vs. mtry, grouped by ntree
+ggplot(tuning_results, aes(x = mtry, y = Accuracy, color = as.factor(ntree))) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Tuning mtry and ntree for Random Forest",
+       x = "mtry",
+       y = "Accuracy",
+       color = "Number of Trees (ntree)") +
+  theme_minimal()
+
+
+# Extract feature importance
+feature_importance <- importance(rf_final)
+feature_importance_df <- data.frame(
+  Feature = rownames(feature_importance),
+  Importance = feature_importance[, "MeanDecreaseAccuracy"]
+)
+
+# Plot Feature Importance
+ggplot(feature_importance_df, aes(x = reorder(Feature, Importance), y = Importance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Feature Importance (Mean Decrease in Accuracy)",
+       x = "Feature",
+       y = "Importance") +
+  theme_minimal()
+
+
+######### OR
+
+# Grid search
+
+
+# Set up tuning grid
+
+tuneGrid <- expand.grid(mtry = c(2, 4, 6)) # Adjust mtry based on number of features
+control <- trainControl(method = "cv", number = 5) # 5-fold cross-validation
+
+# Tune model
+rf_grid <- train(
+  thirtyday_expire_flag ~ ., 
+  data = train_data, 
+  method = "rf", 
+  trControl = control, 
+  tuneGrid = tuneGrid,
+  importance = TRUE
+)
+
+model_rf_grid <- rf_tuned
+
+varImpPlot(model_rf_grid$finalModel)
+
+#saveRDS(model_rf_grid, "models_etc/model_rf_grid.rds")
+pred_rf_grid <- predict(model_rf_grid, test_data)
+#saveRDS(pred_rf_grid, "models_etc/pred_rf_grid.rds")
+
+a <- readRDS("models_etc/model_rf_grid.rds")
+class(a) <- "randomForest"
+varImpPlot(a)
+
+varImpPlot(a)
+
+```
+
+
+```{r, eval = FALSE}
+
+### TEMP SPOT
+
+Hi guys!!
+  
+So my final variables for moving forward predictions are:
+  
+  model_tree_pruned
+  pred_tree_pruned
+  
+  model_rf_baseline <- readRDS("models_etc/model_rf_baseline.rds")
+  pred_rf_baseline <- readRDS("models_etc/pred_rf_baseline.rds")
+  
+  # I am going to do this tomorrow. Can just use this one for now.
+  model_rf_optimal_param <- readRDS("models_etc/model_rf_baseline.rds")
+  pred_rf_optimal_param <- readRDS("models_etc/pred_rf_baseline.rds")
+  
+  model_rf_grid <- readRDS("models_etc/model_rf_grid.rds")
+  pred_rf_grid <- readRDS("models_etc/pred_rf_grid.rds")
+
+
+I think caret is a good start:
+  
+library(caret)
+confusionMatrix(predictions, test_data %>% pull(thirtyday_expire_flag))
+
+We also should do c.v. and pick metrics, etc
+
+And the plots
+
+```
+
 
 # Compare Original to Additional Analysis Methods
 
