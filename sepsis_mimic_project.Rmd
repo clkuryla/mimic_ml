@@ -887,5 +887,150 @@ plot_clinical_impact(
 
 ```
 
+#### Forward Stepwise XGBoost 
+
+```{r}
+# Load required libraries
+library(tidyverse)
+library(xgboost)
+library(MASS)       # For stepAIC
+library(caret)      # For data splitting
+library(pROC)       # For ROC curve
+library(ggplot2)
+
+#---------------------------
+# Data Preparation
+#---------------------------
+nonpredictor_cols <- c("intime", "outtime", "dbsource",
+                       "suspected_infection_time_poe", "antibiotic_time_poe", "blood_culture_time",
+                       "hospital_expire_flag", "subject_id", "icustay_id", "hadm_id")
+
+exclude_cols <- c("gender", "ethnicity", "elixhauser_hospital",
+                  "first_service", "specimen_poe", "colloid_bolus",
+                  "crystalloid_bolus", "hosp_los", "icu_los", "lods")
+
+# Filter data
+model_data <- data_numeric %>%
+  select(-all_of(nonpredictor_cols)) %>%
+  select(-all_of(exclude_cols))
+
+# Train-test split
+set.seed(1248)
+train_index <- createDataPartition(model_data$thirtyday_expire_flag, p = 0.7, list = FALSE)
+train_data <- model_data[train_index, ]
+test_data  <- model_data[-train_index, ]
+
+x_train <- train_data %>% select(-thirtyday_expire_flag)
+y_train <- train_data$thirtyday_expire_flag
+
+x_test <- test_data %>% select(-thirtyday_expire_flag)
+y_test <- test_data$thirtyday_expire_flag
+
+#---------------------------
+# XGBoost for Feature Importance
+#---------------------------
+dtrain <- xgb.DMatrix(data = as.matrix(x_train), label = y_train)
+dtest  <- xgb.DMatrix(data = as.matrix(x_test), label = y_test)
+
+params <- list(
+  objective = "binary:logistic",
+  eval_metric = "auc",
+  eta = 0.1,
+  max_depth = 6,
+  min_child_weight = 10,
+  subsample = 0.8,
+  colsample_bytree = 0.8
+)
+
+xgb_model <- xgb.train(
+  params = params,
+  data = dtrain,
+  nrounds = 100,
+  watchlist = list(train = dtrain, test = dtest),
+  early_stopping_rounds = 10,
+  verbose = 0
+)
+
+# Extract top features
+importance_xg1 <- xgb.importance(model = xgb_model)
+top_vars <- importance_xg1 %>%
+  top_n(50, wt = Gain) %>%
+  pull(Feature)
+
+#---------------------------
+# Forward Stepwise Selection
+#---------------------------
+
+# Filter dataset to include top variables
+data_top <- train_data %>%
+  select(thirtyday_expire_flag, all_of(top_vars)) %>%
+  na.omit()
+
+# Start with an empty model and full model
+empty_model <- glm(thirtyday_expire_flag ~ 1, data = data_top, family = binomial)
+full_model  <- glm(thirtyday_expire_flag ~ ., data = data_top, family = binomial)
+
+# Forward stepwise selection
+forward_stepwise_lr_model <- stepAIC(
+  empty_model, 
+  scope = list(lower = empty_model, upper = full_model),
+  direction = "forward",
+  trace = TRUE
+)
+
+# Extract selected variables and clean names
+xgboost_forward_final_vars <- names(coef(forward_stepwise_lr_model))[-1]
+xgboost_forward_final_vars <- gsub("1$", "", xgboost_forward_final_vars)  # Remove trailing '1'
+
+# Print selected variables
+print(xgboost_forward_final_vars)
+
+#---------------------------
+# Refitting XGBoost with Selected Variables
+#---------------------------
+forward_train_x_selected <- train_data %>% 
+  select(all_of(intersect(xgboost_forward_final_vars, colnames(train_data))))
+forward_test_x_selected  <- test_data %>%
+  select(all_of(intersect(xgboost_forward_final_vars, colnames(test_data))))
+
+forward_dtrain_selected <- xgb.DMatrix(data = as.matrix(forward_train_x_selected), label = y_train)
+forward_dtest_selected  <- xgb.DMatrix(data = as.matrix(forward_test_x_selected), label = y_test)
+
+xgb_forward_final_model <- xgb.train(
+  params = params,
+  data = forward_dtrain_selected,
+  nrounds = 100,
+  watchlist = list(train = forward_dtrain_selected, test = forward_dtest_selected),
+  early_stopping_rounds = 10,
+  verbose = 0
+)
+
+# Evaluate final model
+forward_xg_preds <- predict(xgb_forward_final_model, forward_dtest_selected)
+
+roc_obj <- roc(response = y_test, predictor = forward_xg_preds)
+auc_val <- auc(roc_obj)
+cat("Final model AUC:", auc_val, "\n")
+
+# Plot ROC curve
+plot(roc_obj, col = "blue", main = paste0("Forward Stepwise XGBoost ROC Curve (AUC = ", round(auc_val, 4), ")"))
+
+# Feature importance for reduced model
+forward_final_importance <- xgb.importance(feature_names = colnames(forward_train_x_selected), model = xgb_forward_final_model)
+print(forward_final_importance)
+
+# Plot feature importance
+head(forward_final_importance, 20) %>%
+  ggplot(aes(x = fct_reorder(Feature, Gain, .desc = FALSE), y = Gain)) +
+  geom_col() +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "Gain",
+       y = "Feature",
+       title = "Forward Stepwise XGBoost Feature Importance")
+
+
+```
+
 # Compare Original to Additional Analysis Methods
 
