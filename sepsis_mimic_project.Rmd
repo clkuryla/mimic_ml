@@ -273,7 +273,7 @@ auc_val <- auc(roc_obj)
 cat("AUC:", auc_val, "\n")
 
 # Plot ROC curve
-plot(roc_obj, col = "blue", main = paste("ROC Curve (AUC =", round(auc_val, 4), ")"))
+plot(roc_obj, col = "blue", main = paste("Logistic Regression ROC Curve (AUC =", round(auc_val, 4), ")"))
 
 
 # Impute missing values (e.g., using the median for numeric variables)
@@ -299,7 +299,7 @@ plot_decision_curve(
   ylab = "Net Benefit",
   legend.position = "right"
 )
-
+dca_result_lg <- dca_result
 #---------------------------
 # Plot the Clinical Impact Curve
 #---------------------------
@@ -397,7 +397,7 @@ threshold <- 35  # check
 
 saps_predicted_mortality <- ifelse(saps2_score > threshold, 1, 0)  # 1 = Predicted to die, 0 = Predicted to survive
 
-saps_confusion_matrix <- table(Predicted = saps_predicted_mortality, Actual = data$hospital_expire_flag)
+saps_confusion_matrix <- table(Predicted = saps_predicted_mortality, Actual = data$thirtyday_expire_flag)
 
 print("Confusion Matrix:")
 print(saps_confusion_matrix)
@@ -423,11 +423,56 @@ saps_thirtyday_expire_flag <- as.numeric(data$thirtyday_expire_flag)
 
 saps_roc_curve <- roc(saps_thirtyday_expire_flag, saps2_score)
 
-plot(saps_roc_curve, col = "blue", main = "ROC Curve for SAPS II Predictions")
-abline(a = 0, b = 1, lty = 2, col = "red")  
+# plot(saps_roc_curve, col = "blue", main = "ROC Curve for SAPS II Predictions")
+# abline(a = 0, b = 1, lty = 2, col = "red")  
 
 saps_auc_value <- auc(saps_roc_curve)
 cat("Area Under the Curve (AUC):", saps_auc_value, "\n")
+plot(saps_roc_curve, col = "blue", main = paste("SAPS II ROC Curve (AUC =", round(saps_auc_value, 4), ")"))
+
+```
+
+### SAPS-II DCA and CIC
+```{r}
+
+
+# # Plot ROC curve
+# plot(roc_obj, col = "blue", main = paste("ROC Curve (AUC =", round(auc_val, 4), ")"))
+
+# Add SAPS-II Score to the Dataset
+data$saps2_score <- saps2_score
+
+# Ensure thirtyday_expire_flag is binary and numeric
+# data$thirtyday_expire_flag <- as.numeric(as.character(data$thirtyday_expire_flag)) - 1
+
+
+# Decision Curve Analysis for SAPS-II Score
+dca_result <- decision_curve(
+  formula = thirtyday_expire_flag ~ saps2_score,
+  data = data,
+  family = binomial(link = "logit"),
+  thresholds = seq(0, 1, by = 0.01),
+  confidence.intervals = FALSE
+)
+# Plot decision curve
+plot_decision_curve(
+  dca_result,
+  xlab = "Threshold Probability",
+  ylab = "Net Benefit",
+  legend.position = "right"
+)
+dca_result_saps <- dca_result
+#---------------------------
+# Plot the Clinical Impact Curve
+#---------------------------
+
+# Clinical impact curve for test dataset
+plot_clinical_impact(
+  dca_result,
+  population.size = 100,   # Represent per 100 patients
+  xlab = "Threshold Probability",
+  ylab = "Number of Patients per 100"
+)
 
 ```
 
@@ -639,7 +684,7 @@ auc_val <- pROC::auc(roc_obj)
 cat("Final model AUC:", auc_val, "\n")
 
 # Plot the ROC curve
-plot(roc_obj, col = "blue", main = paste0("Final XGBoost ROC Curve (AUC = ", round(auc(roc_obj),4) , ")"))
+plot(roc_obj, col = "blue", main = paste0("XGBoost ROC Curve (AUC = ", round(auc(roc_obj),4) , ")"))
 
 # Feature importance on the reduced model
 final_importance <- xgb.importance(feature_names = colnames(train_x_selected), model = xgb_final_model)
@@ -735,6 +780,7 @@ plot_clinical_impact(
   xlab = "Threshold Probability",
   ylab = "Number of Patients per 100"
 )
+dca_result_xg <- dca_result
 
 ```
 
@@ -823,21 +869,21 @@ final_test_data$pred_class <- lda_predictions$class    # Predicted class labels
 #---------------------------
 
 # # Confusion Matrix
-# conf_matrix <- table(
-#   Predicted = final_test_data$pred_class,
-#   Actual = final_test_data$thirtyday_expire_flag
-# )
-# print(conf_matrix)
-# 
-# # Calculate accuracy
-# accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
-# cat("Accuracy:", accuracy, "\n")
-# 
-# # Sensitivity and Specificity
-# sensitivity <- conf_matrix[2, 2] / sum(conf_matrix[, 2])
-# specificity <- conf_matrix[1, 1] / sum(conf_matrix[, 1])
-# cat("Sensitivity:", sensitivity, "\n")
-# cat("Specificity:", specificity, "\n")
+conf_matrix <- table(
+  Predicted = final_test_data$pred_class,
+  Actual = final_test_data$thirtyday_expire_flag
+)
+print(conf_matrix)
+
+# Calculate accuracy
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+cat("Accuracy:", accuracy, "\n")
+
+# Sensitivity and Specificity
+sensitivity <- conf_matrix[2, 2] / sum(conf_matrix[, 2])
+specificity <- conf_matrix[1, 1] / sum(conf_matrix[, 1])
+cat("Sensitivity:", sensitivity, "\n")
+cat("Specificity:", specificity, "\n")
 
 #---------------------------
 # ROC and AUC
@@ -849,7 +895,7 @@ auc_val <- auc(roc_obj)
 cat("AUC:", auc_val, "\n")
 
 # Plot the ROC Curve
-plot(roc_obj, col = "blue", main = paste("ROC Curve (AUC =", round(auc_val, 4), ")"))
+plot(roc_obj, col = "blue", main = paste("LDA ROC Curve (AUC =", round(auc_val, 4), ")"))
 
 #---------------------------
 # Decision Curve Analysis (DCA)
@@ -881,6 +927,7 @@ plot_clinical_impact(
   xlab = "Threshold Probability",
   ylab = "Number of Patients per 100"
 )
+dca_result_lda <- dca_result
 
 # Save the Clinical Impact Curve
 # ggsave("clinical_impact_curve_lda.png")
@@ -1034,3 +1081,26 @@ head(forward_final_importance, 20) %>%
 
 # Compare Original to Additional Analysis Methods
 
+#### Decision curve analysis (DCA) of the three prediction models
+
+```{r}
+# Combine and Plot Multiple Decision Curve Results
+plot_decision_curve(
+  list(
+    dca_result_lg,   # Logistic Regression DCA
+    dca_result_saps, # SAPS-II Model DCA
+    dca_result_xg,   # XGBoost Model DCA
+    dca_result_lda   # LDA Model DCA
+  ),
+  curve.names = c("Logistic Regression", "SAPS-II", "XGBoost", "LDA"),
+  xlab = "Threshold Probability",
+  ylab = "Net Benefit",
+  col = c("red", "blue", "green", "purple"),  # Custom colors
+  lwd = 2,                                   # Line width for curves
+  legend.position = "topright"
+)
+
+# Add a Title to the Plot
+title("Comparison of Decision Curve Analysis")
+
+```
