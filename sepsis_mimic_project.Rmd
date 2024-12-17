@@ -1055,6 +1055,7 @@ xgb_forward_final_model <- xgb.train(
 # Evaluate final model
 forward_xg_preds <- predict(xgb_forward_final_model, forward_dtest_selected)
 
+
 roc_obj <- roc(response = y_test, predictor = forward_xg_preds)
 auc_val <- auc(roc_obj)
 cat("Final model AUC:", auc_val, "\n")
@@ -1079,6 +1080,45 @@ head(forward_final_importance, 20) %>%
 
 ```
 
+```{r}
+
+test_data$pred <- forward_xg_preds
+
+#---------------------------
+# Perform Decision Curve Analysis (DCA) on XGBoost forward stepwise
+#---------------------------
+
+# Decision curve analysis for the test dataset
+dca_result <- decision_curve(
+  formula = thirtyday_expire_flag ~ pred,
+  data = test_data,
+  family = binomial(link = "logit"),
+  thresholds = seq(0, 1, by = 0.01),
+  confidence.intervals = FALSE
+)
+# Plot decision curve
+plot_decision_curve(
+  dca_result,
+  xlab = "Threshold Probability",
+  ylab = "Net Benefit",
+  legend.position = "right"
+)
+
+#---------------------------
+# Plot the Clinical Impact Curve
+#---------------------------
+
+# Clinical impact curve for test dataset
+plot_clinical_impact(
+  dca_result,
+  population.size = 100,   # Represent per 100 patients
+  xlab = "Threshold Probability",
+  ylab = "Number of Patients per 100"
+)
+dca_result_xg_fwd <- dca_result
+
+```
+
 # Compare Original to Additional Analysis Methods
 
 #### Decision curve analysis (DCA) of the three prediction models
@@ -1087,15 +1127,16 @@ head(forward_final_importance, 20) %>%
 # Combine and Plot Multiple Decision Curve Results
 plot_decision_curve(
   list(
-    dca_result_lg,   # Logistic Regression DCA
-    dca_result_saps, # SAPS-II Model DCA
-    dca_result_xg,   # XGBoost Model DCA
-    dca_result_lda   # LDA Model DCA
+    dca_result_lg,       # Logistic Regression DCA
+    dca_result_saps,     # SAPS-II Model DCA
+    dca_result_xg,       # XGBoost Model DCA
+    dca_result_xg_fwd,   # XGBoost Forward Model DCA
+    dca_result_lda       # LDA Model DCA
   ),
-  curve.names = c("Logistic Regression", "SAPS-II", "XGBoost", "LDA"),
+  curve.names = c("Logistic Regression", "SAPS-II", "XGBoost", "XGBoost fwd", "LDA"),
   xlab = "Threshold Probability",
   ylab = "Net Benefit",
-  col = c("red", "blue", "green", "purple"),  # Custom colors
+  col = c("red", "blue", "green", "purple", "orange"),
   lwd = 2,                                   # Line width for curves
   legend.position = "topright"
 )
