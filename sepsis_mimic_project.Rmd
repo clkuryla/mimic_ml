@@ -245,6 +245,86 @@ final_lr_model <- glm(thirtyday_expire_flag ~ ., data = final_train_data, family
 summary(final_lr_model)
 ```
 
+#### Table 2
+Features selected in the conventional logistic regression 
+
+```{r}
+# # ---------------------------
+# # Feature Importance for Logistic Regression
+# # ---------------------------
+# 
+# # Standardize the features in the training data
+# standardized_train_data <- final_train_data %>%
+#   mutate(across(where(is.numeric), ~ scale(.) %>% as.numeric()))
+# 
+# # Refit the logistic regression model on standardized data
+# standardized_lr_model <- glm(thirtyday_expire_flag ~ ., 
+#                              data = standardized_train_data, 
+#                              family = binomial)
+# 
+# # Extract coefficients and calculate importance
+# coefs <- summary(standardized_lr_model)$coefficients[-1, 1]  # Exclude intercept
+# importance <- abs(coefs)  # Importance = absolute value of coefficients
+# 
+# # Create a data frame for plotting
+# import_df <- data.frame(
+#   Feature = names(importance),
+#   Importance = importance
+# )
+# 
+# # Sort by importance
+# import_df <- import_df %>% arrange(desc(Importance))
+# 
+# # Plot using ggplot2
+# library(ggplot2)
+# 
+# ggplot(import_df, aes(x = reorder(Feature, Importance), y = Importance)) +
+#   geom_col(fill = "steelblue") +
+#   coord_flip() +
+#   labs(x = "Features",
+#        y = "Absolute Standardized Coefficient",
+#        title = "Feature Importance (Logistic Regression)") +
+#   theme_minimal()
+# ---------------------------
+# Feature Importance for Logistic Regression (Top 10)
+# ---------------------------
+
+# Standardize the features in the training data
+standardized_train_data <- final_train_data %>%
+  mutate(across(where(is.numeric), ~ scale(.) %>% as.numeric()))
+
+# Refit the logistic regression model on standardized data
+standardized_lr_model <- glm(thirtyday_expire_flag ~ ., 
+                             data = standardized_train_data, 
+                             family = binomial)
+
+# Extract coefficients and calculate importance
+coefs <- summary(standardized_lr_model)$coefficients[-1, 1]  # Exclude intercept
+importance <- abs(coefs)  # Importance = absolute value of coefficients
+
+# Create a data frame for plotting
+import_df <- data.frame(
+  Feature = names(importance),
+  Importance = importance
+)
+
+# Sort by importance and keep top 10 features
+import_df <- import_df %>%
+  arrange(desc(Importance)) %>%
+  dplyr::slice(1:10)  # Explicitly specify dplyr::slice
+
+# Plot using ggplot2
+library(ggplot2)
+
+ggplot(import_df, aes(x = reorder(Feature, Importance), y = Importance)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(x = "Features",
+       y = "Absolute Standardized Coefficient",
+       title = "Top 10 Feature Importance (Logistic Regression)") +
+  theme_minimal()
+
+```
 ```{r}
 #---------------------------
 # Model Evaluation
@@ -314,12 +394,6 @@ plot_clinical_impact(
 
 ```
 
-#### Table 2
-Features selected in the conventional logistic regression 
-
-```{r}
-
-```
 
 ### SAPS-II Score Model
 
