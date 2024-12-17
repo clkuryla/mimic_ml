@@ -1023,6 +1023,8 @@ a <- readRDS("models_etc/model_rf_grid.rds")
 class(a) <- "randomForest"
 varImpPlot(a)
 
+
+
 varImpPlot(a)
 
 ```
@@ -1058,6 +1060,13 @@ confusionMatrix(predictions, test_data %>% pull(thirtyday_expire_flag))
 We also should do c.v. and pick metrics, etc
 
 And the plots
+
+```
+
+```{r}
+
+
+
 
 ```
 
