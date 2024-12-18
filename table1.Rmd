@@ -1,0 +1,467 @@
+---
+title: "Table 1"
+author: "Christine Lucille Kuryla"
+date: "2024-12-18"
+output: html_document
+---
+
+I would like to create a table like the attached figures. Please provide well-commented and structured code to do this from the dataset that follows using the tidyverse in R such that "Normally and non-normally distributed continuous variables were summarized as the mean ± SD and the median respectively. Continuous variables of normal distribution were tested by Kolmogorov–Smirnov test. Student’s t test, One-way ANOVA, Mann–Whitney U or Kruskal–Wallis H test were used to compare continuous data of non-normally distribution, if appropriate. Categorical variables were expressed as numbers or percentage and assessed using Chi-square test or Fisher’s exact test according to different sample sizes as proper." 
+
+
+# Article
+
+Hou, N., Li, M., He, L. et al. Predicting 30-days mortality for MIMIC-III patients with sepsis-3: a machine learning approach using XGboost. J Transl Med 18, 462 (2020). https://doi.org/10.1186/s12967-020-02620-5
+
+https://translational-medicine.biomedcentral.com/articles/10.1186/s12967-020-02620-5 
+
+# Data from online article
+
+## Load Data
+```{r load_data}
+# Downloaded from: https://translational-medicine.biomedcentral.com/articles/10.1186/s12967-020-02620-5#Sec14
+
+# This data has all of the patients included in the study, after they filtered out certain patients due to the exclusion criteria in the paper
+# n = 4559
+
+data <- read_csv("data/12967_2020_2620_MOESM1_ESM.csv") 
+
+# colnames(data)
+
+# Remove duplicates
+
+# all(data$icustay_id...1 == data$icustay_id...103) # TRUE
+# all(data$hadm_id...102 == data$hadm_id...2) # TRUE
+
+data <- data %>% 
+  mutate(icustay_id = icustay_id...1,
+         hadm_id = hadm_id...2
+         ) %>% 
+  select(-c("icustay_id...1", "icustay_id...103",
+            "hadm_id...2", "hadm_id...102"
+            ))
+
+# Some methods need numeric data, some need different variable types. Let's create two dataframes.
+
+data_numeric <- data
+
+# Convert into appropriate data types
+
+data_vartypes <- data %>% 
+  mutate(intime = dmy_hms(intime),
+         outtime = dmy_hms(outtime),
+         dbsource = as_factor(dbsource),
+         suspected_infection_time_poe = dmy_hms(suspected_infection_time_poe),
+         specimen_poe = as_factor(specimen_poe),
+         positiveculture_poe = as_factor(positiveculture_poe),
+         antibiotic_time_poe = dmy_hms(antibiotic_time_poe),
+         blood_culture_time = dmy_hms(blood_culture_time),
+         blood_culture_positive = as_factor(blood_culture_positive),
+         gender = as_factor(gender),
+         is_male = as_factor(is_male), # should we delete this?
+         ethnicity = as_factor(ethnicity),
+         race_white = as_factor(race_white),
+         race_black = as_factor(race_black),
+         race_hispanic = as_factor(race_hispanic),
+         race_other = as_factor(race_other),
+         metastatic_cancer = as_factor(metastatic_cancer),
+         diabetes = as_factor(diabetes),
+         first_service = as_factor(first_service),
+         hospital_expire_flag = as_factor(hospital_expire_flag),
+         thirtyday_expire_flag = as_factor(thirtyday_expire_flag),
+         sepsis_angus = as_factor(sepsis_angus),
+         sepsis_martin = as_factor(sepsis_martin),
+         sepsis_explicit = as_factor(sepsis_explicit),
+         septic_shock_explicit = as_factor(septic_shock_explicit),
+         severe_sepsis_explicit = as_factor(severe_sepsis_explicit),
+         sepsis_nqf = as_factor(sepsis_nqf),
+         sepsis_cdc = as_factor(sepsis_cdc),
+         sepsis_cdc_simple = as_factor(sepsis_cdc_simple),
+         elixhauser_hospital = as_factor(elixhauser_hospital), # what does this mean?
+         vent = as_factor(vent),
+         # sofa
+         # lods
+         # sirs
+         # qsofa
+         qsofa_sysbp_score = as_factor(qsofa_sysbp_score),
+         qsofa_gcs_score = as_factor(qsofa_gcs_score),
+         qsofa_resprate_score = as_factor(qsofa_resprate_score),
+         rrt = as_factor(rrt)
+         # colloid_bolus has 4050 NAs!!! n = 4559!!!
+         # crystalloid_bolus has 1194 NAs
+         # icustayid
+         # hadm_id
+         # subject_id
+  )
+
+
+
+```
+
+Below is a well-structured and commented example of how you might create a summary table similar to the attached example, using tidyverse and other helper packages (broom, rstatix) in R. This code assumes:
+
+Your grouping variable is thirtyday_expire_flag indicating whether death occurred within 30 days (1) or not (0).
+Continuous variables need to be tested for normality; normally distributed variables will be summarized with mean ± SD and compared using t-tests/ANOVA, while non-normal variables will be summarized by median (IQR) and compared using Mann-Whitney/Kruskal-Wallis tests.
+Categorical variables will be expressed as counts (%) and compared using Chi-square or Fisher’s exact test depending on sample sizes.
+You will need to customize the variable sets (continuous_vars and categorical_vars) according to your dataset. The code below provides a template and some general logic:
+
+Notes:
+
+You’ll need to adjust the variable lists (continuous_vars, categorical_vars) to match the variables you want in the table.
+This code is a template. You may need to refine formatting (e.g., rounding, labeling groups, etc.).
+The code uses rstatix functions (t_test, wilcox_test, anova_test, kruskal_test) for statistical comparisons and returns tidy outputs. You might need to install rstatix if not already present.
+The example assumes binary grouping (two categories: e.g., died within 30 days vs. survived). If you have more groups, you can adapt the testing logic accordingly (ANOVA/Kruskal-Wallis and appropriate post-hoc tests).
+For normality tests, a single KS test on the entire dataset is shown. Some might prefer checking normality within each group. You could modify the check_normality function accordingly by passing subsetted data.
+
+```{r}
+
+##############################
+## Load Required Libraries  ##
+##############################
+
+library(tidyverse)
+library(rstatix)   # for easy statistical tests and summaries
+library(broom)      # to tidy statistical test outputs
+
+##############################
+## Data Preparation         ##
+##############################
+
+# Assuming your data frame is called data_vartypes
+# and that `thirtyday_expire_flag` is your grouping variable
+
+# Convert thirtyday_expire_flag to a factor if it isn't already
+data_vartypes <- data_vartypes %>%
+  mutate(thirtyday_expire_flag = as.factor(thirtyday_expire_flag))
+
+# Identify variable types (you can modify these lists)
+continuous_vars <- c("age", "icu_los", "hosp_los", "sofa", "bun_min", "bun_max") 
+# ... add other continuous variables as needed
+
+categorical_vars <- c("is_male", "race_white", "race_black", "vent") 
+# ... add other categorical variables as needed
+
+##############################
+## Helper Functions         ##
+##############################
+
+# Function to check normality using Kolmogorov-Smirnov test
+# and return "normal" or "non-normal"
+check_normality <- function(x) {
+  # Remove NAs
+  x <- x[!is.na(x)]
+  
+  if(length(x) < 30) {
+    # If too few observations, normality test might be unstable;
+    # but we will still proceed. For very small samples, normality 
+    # tests are less reliable. 
+    return("non-normal") 
+  }
+  
+  # KS test comparing to a normal distribution with sample mean/sd
+  ks_res <- ks.test((x - mean(x))/sd(x), "pnorm", mean=0, sd=1)
+  
+  # If p-value > 0.05, we consider it not rejecting normality
+  if (ks_res$p.value > 0.05) {
+    return("normal")
+  } else {
+    return("non-normal")
+  }
+}
+
+# Function to summarize continuous variables
+summarize_continuous <- function(df, var, group_var) {
+  var_sym <- sym(var)
+  group_sym <- sym(group_var)
+  
+  # Check normality on the entire dataset (you could also check per group if desired)
+  dist_type <- check_normality(df[[var]])
+  
+  if (dist_type == "normal") {
+    # Normal distribution: mean ± SD
+    summary_tbl <- df %>%
+      group_by(!!group_sym) %>%
+      summarise(
+        Mean = mean(!!var_sym, na.rm = TRUE),
+        SD = sd(!!var_sym, na.rm = TRUE),
+        n = sum(!is.na(!!var_sym))
+      ) %>%
+      mutate(Summary = paste0(round(Mean,2), " ± ", round(SD,2)))
+    
+    # Statistical test: t-test for 2 groups, ANOVA if more than 2 groups
+    # Here we assume two groups: "0" vs "1". If more groups, modify accordingly.
+    if (n_distinct(df[[group_var]]) == 2) {
+      test_res <- t_test(df, formula = as.formula(paste(var, "~", group_var))) %>%
+        select(p) 
+    } else {
+      test_res <- anova_test(df, dv = !!var_sym, between = !!group_sym) %>%
+        select(p)
+    }
+    
+  } else {
+    # Non-normal distribution: median (IQR)
+    summary_tbl <- df %>%
+      group_by(!!group_sym) %>%
+      summarise(
+        Median = median(!!var_sym, na.rm = TRUE),
+        Q1 = quantile(!!var_sym, probs = 0.25, na.rm = TRUE),
+        Q3 = quantile(!!var_sym, probs = 0.75, na.rm = TRUE),
+        n = sum(!is.na(!!var_sym))
+      ) %>%
+      mutate(Summary = paste0(round(Median,2), " [", round(Q1,2), ", ", round(Q3,2), "]"))
+    
+    # Statistical test: Mann-Whitney for 2 groups, Kruskal-Wallis if more than 2
+    if (n_distinct(df[[group_var]]) == 2) {
+      test_res <- wilcox_test(df, formula = as.formula(paste(var, "~", group_var))) %>%
+        select(p)
+    } else {
+      test_res <- kruskal_test(df, formula = as.formula(paste(var, "~", group_var))) %>%
+        select(p)
+    }
+  }
+  
+  summary_tbl %>%
+    pivot_wider(names_from = !!group_sym, values_from = Summary) %>%
+    mutate(variable = var,
+           p = test_res$p) %>%
+    select(variable, everything())
+}
+
+# Function to summarize categorical variables
+summarize_categorical <- function(df, var, group_var) {
+  var_sym <- sym(var)
+  group_sym <- sym(group_var)
+  
+  # Create contingency table
+  tab <- df %>%
+    count(!!group_sym, !!var_sym) %>%
+    group_by(!!group_sym) %>%
+    mutate(prop = n/sum(n)*100)
+  
+  # Chi-square or Fisher test depending on expected counts
+  # (Here we do a simple rule: if any cell count < 5, use Fisher)
+  cont_table <- table(df[[var]], df[[group_var]])
+  if (any(cont_table < 5)) {
+    test_res <- fisher.test(cont_table)
+  } else {
+    test_res <- chisq.test(cont_table)
+  }
+  
+  # Summarize result
+  summary_tbl <- tab %>%
+    mutate(Summary = paste0(n, " (", round(prop,1), "%)")) %>%
+    select(-n, -prop) %>%
+    pivot_wider(names_from = !!group_sym, values_from = Summary) %>%
+    mutate(variable = var,
+           p = test_res$p.value)
+  
+  summary_tbl
+}
+
+##############################
+## Create Summary Table     ##
+##############################
+
+# Continuous variables summary
+continuous_summary <- map_dfr(continuous_vars, ~ summarize_continuous(data_vartypes, .x, "thirtyday_expire_flag"))
+
+# Categorical variables summary
+categorical_summary <- map_dfr(categorical_vars, ~ summarize_categorical(data_vartypes, .x, "thirtyday_expire_flag"))
+
+##############################
+## Combine and Arrange      ##
+##############################
+
+final_table <- bind_rows(continuous_summary, categorical_summary)
+
+# Print final summary table
+print(final_table)
+
+
+```
+
+Below is an example of how you might further transform final_table into a more presentable form resembling the figure you provided. This includes:
+
+Renaming the grouping columns to more descriptive labels (e.g., "Death within 30 days" and "Survival within 30 days").
+Ordering or grouping the rows by categories (e.g., baseline characteristics, lab parameters, etc.).
+Adjusting column order and renaming the p-value column.
+You can adapt the code to match your desired variable categories, ordering, and headings.
+
+What this code does:
+
+Categorization: Creates a sections tibble mapping variables to their respective categories.
+Joining & Renaming: Joins this categorization with final_table, then renames the groups 0 and 1 to descriptive labels and p to p-value.
+Ordering: Arranges the table by category, and then by variable.
+Presentation: Uses kableExtra to produce a visually appealing table with grouped rows (headings) for each category section, similar to the example figure.
+
+```{r}
+library(tidyverse)
+
+# Assume you have a final_table that looks something like this:
+# final_table: 
+#   variable                  0          1             p
+#   age                       63 ± 15    71 ± 16       0.00023
+#   gender (n (%))            200 (40%)  300 (60%)     0.543
+#   ... and so forth
+
+# For demonstration, let's say you have a vector that categorizes variables into sections:
+# You will need to customize this vector to map each variable in your final_table to a section.
+sections <- tibble(
+  variable = c("age", "gender (n (%))", "icu_los", "hosp_los", "sofa", "bun_min", "bun_max"),
+  category = c("Baseline variables and in-hospital factors",
+               "Baseline variables and in-hospital factors",
+               "Baseline variables and in-hospital factors",
+               "Baseline variables and in-hospital factors",
+               "Score system", 
+               "Laboratory parameters", 
+               "Laboratory parameters")
+)
+
+# Join your final_table with the sections info
+presentable_table <- final_table %>%
+  left_join(sections, by = "variable") %>%
+  # Rename the factor levels 0 and 1 to something meaningful:
+  rename(`Survival within 30 days` = `0`,
+         `Death within 30 days` = `1`) %>%
+  # Rename p column for clarity
+  rename(`p-value` = p) %>%
+  # If you'd like, you can specify an order for the categories:
+  mutate(category = factor(category, 
+                           levels = c("Baseline variables and in-hospital factors",
+                                      "Vital signs",
+                                      "Laboratory parameters",
+                                      "Score system",
+                                      "Advanced life support",
+                                      "Accompanied diseases (comorbidity)",
+                                      "Common sources of infection",
+                                      "Outcome"))) %>%
+  arrange(category, variable)
+
+# Now, you have a table with a 'category' column that can be used to create headings.
+# If you'd like to print the table in a nice format, you can do so by grouping:
+final_presentation <- presentable_table %>%
+  select(category, variable, `Death within 30 days`, `Survival within 30 days`, `p-value`)
+
+# To resemble the figure, you might want to show category headings above each group.
+# One option is to print a table grouped by category and use a formatting package like kableExtra:
+library(kableExtra)
+
+final_presentation %>%
+  group_by(category) %>%
+  kbl(col.names = c("Category", "Variable", "Death within 30 days", "Survival within 30 days", "p-value"),
+      align = c("l", "l", "c", "c", "c")) %>%
+  kable_classic(full_width = F) %>%
+  pack_rows(index = table(final_presentation$category)) # This creates grouped rows by category
+
+# Note:
+# - Customize the variables in `sections` and their categories according to your dataset.
+# - Adjust rounding, styling, and formatting as needed.
+# - The final display (with pack_rows) requires kableExtra and a suitable viewer (R Markdown, HTML).
+# - If you simply need a data frame, you can just print `final_presentation`.
+
+```
+
+Below is an example of how you can modify your final table so that each variable appears on a single row. Currently, it seems you have multiple rows per variable—some showing the results for the "Death within 30 days" group and others for the "Survival within 30 days" group, with NAs in the opposite column.
+
+A common reason for this is that after pivoting, you have more than one row per variable because the dataset may contain multiple summary rows for the same variable due to normal vs non-normal distributions or other grouping nuances.
+
+The strategy to fix this is:
+
+Ensure that each variable+category combination is unique.
+Use pivot_wider to put the groups ("Death within 30 days" and "Survival within 30 days") on the same row.
+If duplicates still appear (e.g., one row with the death group filled and the other with the survival group filled), combine them by taking the non-NA values.
+
+What this does:
+
+Groups the data by category and variable, ensuring that all rows for the same variable end up being combined.
+Uses coalesce() to select the first non-NA summary value for each outcome group, thereby consolidating rows into one.
+Produces a table with each variable on a single line, showing either a value in the "Death within 30 days" column, the "Survival within 30 days" column, or both—without the redundant NA rows.
+
+```{r}
+library(tidyverse)
+
+# Suppose 'final_presentation' is your currently produced table 
+# that ends up with something like this (simplified example):
+# Category    Variable    Death within 30 days     Survival within 30 days    p-value
+# Baseline    age         NA                      64.98 [52.47, 77.74]       0.0000000
+# Baseline    age         74.62 [60.62, 84.08]    NA                        0.0000000
+# ... and so forth
+
+# First, ensure that we have a unique identifier. In most cases, 'variable' is sufficient.
+# If you have multiple rows per variable due to multiple categories, ensure category is included.
+
+# If your final table is already pivoted but results in duplicates, 
+# try grouping and collapsing rows with something like:
+
+final_single_line <- final_presentation %>%
+  group_by(category, variable) %>%
+  summarize(
+    `Death within 30 days` = coalesce(
+      # Choose the non-NA value among all rows for this variable
+      first(`Death within 30 days`[!is.na(`Death within 30 days`)]),
+      # If all are NA, return NA
+      first(`Death within 30 days`)
+    ),
+    `Survival within 30 days` = coalesce(
+      first(`Survival within 30 days`[!is.na(`Survival within 30 days`)]),
+      first(`Survival within 30 days`)
+    ),
+    `p-value` = first(`p-value`),
+    .groups = "drop"
+  )
+
+# This code:
+# - Groups by the combination of category and variable
+# - For each group, it picks the non-NA entry for "Death within 30 days" and "Survival within 30 days"
+# - Ensures that each (category, variable) pair ends up as a single row.
+
+# Now each variable should have one line, with the appropriate summary under 
+# "Death within 30 days" and/or "Survival within 30 days" columns, and no duplicated rows with NAs.
+
+# You can then display final_single_line using kableExtra or other packages as before:
+library(kableExtra)
+
+final_single_line %>%
+  arrange(category, variable) %>%
+  kbl(col.names = c("Category", "Variable", "Death within 30 days", "Survival within 30 days", "p-value"),
+      align = c("l", "l", "c", "c", "c")) %>%
+  kable_classic(full_width = FALSE) %>%
+  pack_rows(index = table(final_single_line$category))
+
+```
+
+You can remove the category column from the displayed table and use pack_rows from kableExtra to create section headings. The pack_rows function can insert section headers using a vector that counts how many rows belong to each category. This way, the category names appear as headers rather than repeated values in a column.
+
+What this does:
+
+Arranges rows by category and variable.
+Counts how many rows each category has, then uses those counts to create grouped sections via pack_rows.
+Removes the category column from the final displayed table, ensuring each category is presented as a heading, not repeated in a column.
+
+```{r}
+library(tidyverse)
+library(kableExtra)
+
+# Assume final_single_line is the single-row-per-variable table produced previously.
+# It has columns: category, variable, Death within 30 days, Survival within 30 days, p-value.
+
+# Sort by category and variable to group them nicely
+my_table <- final_single_line %>% 
+  arrange(category, variable)
+
+# We will use pack_rows, which needs a named vector indicating how many rows per category.
+# table(my_table$category) returns a named integer vector suitable for pack_rows.
+category_counts <- table(my_table$category)
+
+# Remove the category column from the displayed table
+my_table_no_cat <- select(my_table, -category)
+
+# Now print the table
+my_table_no_cat %>%
+  kbl(col.names = c("Variable", "Death within 30 days", "Survival within 30 days", "p-value"),
+      align = c("l", "c", "c", "c")) %>%
+  kable_classic(full_width = FALSE) %>%
+  # pack_rows will add category headings (section labels) above each group of rows
+  pack_rows(index = category_counts, bold = TRUE, italic = FALSE, indent = FALSE)
+
+```
+
