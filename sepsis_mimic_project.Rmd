@@ -1,7 +1,7 @@
 ---
 title: "ML MIMIC Sepsis Project"
 author: "Christine Lucille Kuryla"
-date: "2024-12-07"
+date: "2024-12-18"
 output: 
   html_document:
     toc: TRUE
@@ -124,35 +124,14 @@ data_vartypes <- data %>%
 
 # Statistical analysis steps
 # Normally distributed continuous variables were
-# summarized as the mean ± SD
+# summarized as the mean±SD
 # Continuous variables of normal distribution were tested by Kolmogorov–Smirnov test
 # Non-normally distributed continuous variables were summarized as the median
 # Student’s t test, One-way ANOVA, Mann–Whitney U or Kruskal–Wallis H test were used to compare continuous data of non-normally distribution, if appropriate.
 # Categorical variables were expressed as numbers or percentage and assessed using Chi-square test or Fisher’s exact test according to different sample sizes as proper
-# Fisher’s uses smaller sample sizes: 20 or 30?
+# Fisher’s uses smaller sample sizes
 
-```
-
-#### Table 1
-Baseline characteristics, vital signs, laboratory parameters and statistic results of mimic-III patients with sepsis. 
-
-```{r}
-
-```
-
-#### Figure 2
-
-##### Figure 2a
-Overall ethnicity characteristics pie chart
-
-```{r}
-
-```
-
-##### Figure 2b
-The common sources of infection pie chart
-
-```{r}
+# code in separate script
 
 ```
 
@@ -162,7 +141,7 @@ The common sources of infection pie chart
 
 ```{r}
 
-# conducted using these significant variables identified by backward stepwise analysis with Chi-square test. Then we chose an entry probability of < 0.05 by the stepwise selection method
+# conducted using these significant variables identified by backward stepwise analysis with Chi-square test. Then we chose an entry probability of <0.05 by the stepwise selection method
 
 # Load required packages
 library(tidyverse)
@@ -200,9 +179,6 @@ test_data  <- model_data[-train_index, ]
 
 # Remove rows with missing values
 train_data <- na.omit(train_data)
-
-# Double-check
-sum(is.na(train_data))  # Should return 0
 
 
 #---------------------------
@@ -249,45 +225,6 @@ summary(final_lr_model)
 Features selected in the conventional logistic regression 
 
 ```{r}
-# # ---------------------------
-# # Feature Importance for Logistic Regression
-# # ---------------------------
-# 
-# # Standardize the features in the training data
-# standardized_train_data <- final_train_data %>%
-#   mutate(across(where(is.numeric), ~ scale(.) %>% as.numeric()))
-# 
-# # Refit the logistic regression model on standardized data
-# standardized_lr_model <- glm(thirtyday_expire_flag ~ ., 
-#                              data = standardized_train_data, 
-#                              family = binomial)
-# 
-# # Extract coefficients and calculate importance
-# coefs <- summary(standardized_lr_model)$coefficients[-1, 1]  # Exclude intercept
-# importance <- abs(coefs)  # Importance = absolute value of coefficients
-# 
-# # Create a data frame for plotting
-# import_df <- data.frame(
-#   Feature = names(importance),
-#   Importance = importance
-# )
-# 
-# # Sort by importance
-# import_df <- import_df %>% arrange(desc(Importance))
-# 
-# # Plot using ggplot2
-# library(ggplot2)
-# 
-# ggplot(import_df, aes(x = reorder(Feature, Importance), y = Importance)) +
-#   geom_col(fill = "steelblue") +
-#   coord_flip() +
-#   labs(x = "Features",
-#        y = "Absolute Standardized Coefficient",
-#        title = "Feature Importance (Logistic Regression)") +
-#   theme_minimal()
-# ---------------------------
-# Feature Importance for Logistic Regression (Top 10)
-# ---------------------------
 
 # Standardize the features in the training data
 standardized_train_data <- final_train_data %>%
@@ -399,9 +336,6 @@ plot_clinical_impact(
 
 ```{r}
 
-# we used these time-stamp varia
-# we used these time-stamp variables to do prediction based on the methods provided by the original literature of SAPS II [16]
-
 # we used these time-stamp variables to do prediction based on the methods provided by the original literature of SAPS II [16]
 
 calculate_saps2 <- function(age, heartrate, sysbp_min, sysbp_max, temp, bun, urineoutput,
@@ -509,16 +443,8 @@ plot(saps_roc_curve, col = "blue", main = paste("SAPS II ROC Curve (AUC =", roun
 ### SAPS-II DCA and CIC
 ```{r}
 
-
-# # Plot ROC curve
-# plot(roc_obj, col = "blue", main = paste("ROC Curve (AUC =", round(auc_val, 4), ")"))
-
 # Add SAPS-II Score to the Dataset
 data$saps2_score <- saps2_score
-
-# Ensure thirtyday_expire_flag is binary and numeric
-# data$thirtyday_expire_flag <- as.numeric(as.character(data$thirtyday_expire_flag)) - 1
-
 
 # Decision Curve Analysis for SAPS-II Score
 dca_result <- decision_curve(
@@ -555,7 +481,7 @@ plot_clinical_impact(
 ```{r}
 
 # performed XGBoost model [17, 18] to analysis the contribution (gain) of each variable to 30-days mortality
-# at the same time, backward stepwise analysis was processed to select the variable with a threshold of p < 0.05 according to the Akaike information criterion (AIC) [19]
+# at the same time, backward stepwise analysis was processed to select the variable with a threshold of p<0.05 according to the Akaike information criterion (AIC) [19]
 # After identifying the variables through XGBoost, we used these clinical and laboratory variables included to construct the XGBoost algorithm model
 
 
@@ -661,9 +587,6 @@ head(importance_xg1, 20) %>%
 # Backward Stepwise Selection Using AIC
 #---------------------------
 
-# After reviewing the importance, we might select a subset of top variables to consider.
-# For demonstration, let's take the top 30 variables by Gain and then run a logistic regression with stepAIC.
-
 # Extract top features
 top_vars <- importance_xg1 %>% 
   top_n(50, wt = Gain) %>%
@@ -683,29 +606,12 @@ data_top <- data_vartypes %>%
 full_lr_model <- glm(thirtyday_expire_flag ~ ., data = data_top, family = binomial)
 summary(full_lr_model)
 
-# # Check for multicolinearity in the lr
-# car::vif(full_lr_model)
-# alias(full_lr_model)
-# # Identify aliased variables
-# aliased_vars <- rownames(alias(full_lr_model)$Complete)
-# # Remove aliased variables from the dataset
-# data_top_clean <- data_top %>% select(-all_of(aliased_vars))
-# # Refit the logistic regression model
-# full_lr_model_clean <- glm(thirtyday_expire_flag ~ ., data = data_top_clean, family = binomial)
-# # Calculate VIF for the cleaned model
-# vif_values <- car::vif(full_lr_model_clean)
-# #print(vif_values)
-
 
 # Perform backward stepwise selection based on AIC
 stepwise_lr_model <- stepAIC(full_lr_model, direction = "backward", trace = FALSE)
 
 # Check the summary of the final model
 summary(stepwise_lr_model)
-
-###############################
-# I'm not sure if here I should only keep the statistically significant ones
-###############################
 
 # The summary will show which variables remain. We can select those final variables:
 final_vars <- names(coef(stepwise_lr_model))[-1]  # remove the intercept
@@ -747,10 +653,6 @@ xgb_final_model <- xgb.train(
 # Evaluate final model performance
 xg_preds <- predict(xgb_final_model, dtest_selected)
 
-# Add predictions to the data frame
-# test_data$pred <- xg_preds
-# test_data$pred <- predict(xgb_final_model, dtest_selected)
-
 library(pROC)
 roc_obj <- pROC::roc(response = y_test, # y_test <- y_test %>% pull(1)
                      predictor = xg_preds)
@@ -777,19 +679,6 @@ head(final_importance, 20) %>%
 
 ```
 
-#### Table 3
-Features selected in the XGboost model
-
-```{r}
-
-```
-
-#### Figure 3
-Analysis results of each features’ contribution by XGBoost model 
-
-```{r}
-
-```
 
 ## Model Comparison
 
@@ -799,28 +688,7 @@ Analysis results of each features’ contribution by XGBoost model
 
 # Tested and compared the performances of the three predictive models by area under curves (AUCs) of the receiver operating characteristic curves (ROC) and decision curve analysis (DCA), then selected the model that achieved the highest overall diagnostic value for further verification
 
-
-# 
-# # Identify best model by AUC
-# best_model <- metrics_table %>%
-#   arrange(desc(mean_roc_auc)) %>%
-#   slice(1) %>%
-#   pull(model)
-# 
-# best_spec <- model_specs[[best_model]]
-# 
-# final_wf <- workflow() %>%
-#   add_recipe(rec) %>%
-#   add_model(best_spec) %>%
-#   fit(data = data)
-# 
-# # Get predicted probabilities from the final model
-# final_preds <- predict(final_wf, new_data = data, type = "prob") %>%
-#   bind_cols(data) %>%
-#   rename(pred = .pred_1)
-
 # Generate predicted probabilities
-# train_data$pred <- predict(xgb_final_model, dtrain)
 test_data$pred <- predict(xgb_final_model, dtest_selected)
 
 #---------------------------
@@ -858,42 +726,6 @@ dca_result_xg <- dca_result
 
 ```
 
-#### Figure 4
-ROC curves of the three models
-
-```{r}
-
-```
-
-#### Figure 5
-Decision curve analysis (DCA) of the three prediction models
-
-```{r}
-
-```
-
-
-### Nomogram and Clinical Impact Curve (CIC) 
-
-```{r}
-# At last, nomogram and clinical impact curve (CIC) were plotted to evaluate the clinical usefulness and applicability net benefits of the model with the best diagnostic value
-```
-
-#### Figure 6
-Nomogram to estimate the risk of mortality in sepsis patients (for visualization of the XGboost predictive model)
-
-```{r}
-
-```
-
-#### Figure 7
-Clinical impact curve (CIC) of XGboost model 
-
-```{r}
-
-```
-
-
 # Additional Analyses
 
 #### LDA
@@ -909,8 +741,7 @@ library(rmda)  # For decision curve analysis
 # Data Preparation
 #---------------------------
 
-# Assume your data is already cleaned as `final_test_data` and `final_train_data` 
-# and includes numeric features and the binary outcome variable `thirtyday_expire_flag`.
+# Data includes numeric features and the binary outcome variable `thirtyday_expire_flag`.
 
 # Ensure the outcome is a factor (LDA requires a categorical target)
 final_train_data$thirtyday_expire_flag <- as.factor(final_train_data$thirtyday_expire_flag)
@@ -1003,9 +834,39 @@ plot_clinical_impact(
 )
 dca_result_lda <- dca_result
 
-# Save the Clinical Impact Curve
-# ggsave("clinical_impact_curve_lda.png")
+```
 
+```{r}
+# Look for non-normal predictors for LDA
+
+# Check class distribution
+table(final_train_data$thirtyday_expire_flag)
+
+#---------------------------
+# Filter Non-Normal Predictors
+#---------------------------
+
+# Filter numeric predictors (excluding the outcome variable)
+numeric_predictors <- sapply(final_train_data[, -which(names(final_train_data) == "thirtyday_expire_flag")], is.numeric)
+final_train_data_numeric <- final_train_data[, c(names(numeric_predictors)[numeric_predictors], "thirtyday_expire_flag")]
+final_test_data_numeric <- final_test_data[, c(names(numeric_predictors)[numeric_predictors], "thirtyday_expire_flag")]
+
+# Convert numeric predictors to numeric
+final_train_data_numeric[, -which(names(final_train_data_numeric) == "thirtyday_expire_flag")] <- lapply(
+  final_train_data_numeric[, -which(names(final_train_data_numeric) == "thirtyday_expire_flag")], as.numeric)
+final_test_data_numeric[, -which(names(final_test_data_numeric) == "thirtyday_expire_flag")] <- lapply(
+  final_test_data_numeric[, -which(names(final_test_data_numeric) == "thirtyday_expire_flag")], as.numeric)
+
+# Perform Shapiro-Wilk test for each numeric predictor
+normality_tests <- sapply(final_train_data_numeric[, -which(names(final_train_data_numeric) == "thirtyday_expire_flag")], shapiro.test)
+
+# Extract p-values
+p_values <- normality_tests$p.value
+
+# Identify predictors failing normality test (e.g., using a threshold p-value of 0.05)
+non_normal_predictors <- names(p_values[p_values >= 0.85])
+
+non_normal_predictors
 ```
 
 #### Forward Stepwise XGBoost 
